@@ -6,10 +6,10 @@ import numpy as np
 np.set_printoptions(suppress=True)
 
 # Load the model
-model = load_model("converted_keras/keras_Model.h5", compile=False)
+model = load_model("converted_keras2/keras_Model.h5", compile=False)
 
 # Load the labels
-class_names = open("converted_keras/labels.txt", "r").readlines()
+class_names = open("converted_keras2/labels.txt", "r").readlines()
 
 # Create the array of the right shape to feed into the keras model
 # The 'length' or number of images you can put into the array is
@@ -17,7 +17,7 @@ class_names = open("converted_keras/labels.txt", "r").readlines()
 data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
 # Replace this with the path to your image
-image = Image.open(r"classes\10 other\vlc_At7B85j6e4.png").convert("RGB")
+image = Image.open(r"classes\11 split screen\9Zm6VBoGiW.png").convert("RGB")
 
 # resizing the image to be at least 224x224 and then cropping from the center
 size = (224, 224)

@@ -1,0 +1,11 @@
+0 Class 1 browsing the web
+1 Class 2 reading documentation
+2 Class 3 using github
+3 Class 4 cmd command
+4 Class 5 editing docs
+5 Class 6 IDE coding
+6 Class 7 watching yt
+7 Class 8 using file explorer
+8 Class 9 preview output
+9 Class 10 other
+10 Class 11 split screen

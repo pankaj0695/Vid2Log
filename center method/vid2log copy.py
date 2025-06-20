@@ -8,8 +8,8 @@ import numpy as np
 np.set_printoptions(suppress=True)
 
 # Load model and labels
-model = load_model("converted_keras/keras_Model.h5", compile=False)
-class_names = [line.strip() for line in open("converted_keras/labels.txt", "r").readlines()]
+model = load_model("converted_keras2/keras_Model.h5", compile=False)
+class_names = [line.strip() for line in open("converted_keras2/labels.txt", "r").readlines()]
 
 # Configure input shape
 data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)

@@ -7,7 +7,7 @@ from PIL import Image, ImageOps
 from datetime import timedelta
 
 # Configuration
-INPUT_VIDEO = "input_video/2025-02-02 14-19-35.mkv"  # Relative path to your video
+INPUT_VIDEO = "input_video/input_video.mkv"  # Relative path to your video
 FPS = 2  # Frames to process per second
 MODEL_PATH = "converted_keras/keras_Model.h5"
 LABELS_PATH = "converted_keras/labels.txt"
