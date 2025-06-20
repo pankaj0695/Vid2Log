@@ -4,3 +4,4 @@ venv/*
 .env
 tempCodeRunnerFile.py
 classified_output
+scene_classification.csv

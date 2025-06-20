@@ -12,6 +12,15 @@ import queue
 model = load_model("converted_keras/keras_model.h5", compile=False)
 class_names = [line.strip() for line in open("converted_keras/labels.txt", "r").readlines()]
 
+def classify_image(image):
+    image = ImageOps.fit(image, (224, 224), Image.Resampling.LANCZOS)
+    image_array = np.asarray(image)
+    normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
+    data = np.expand_dims(normalized_image_array, axis=0)
+    prediction = model.predict(data)
+    return class_names[np.argmax(prediction)], np.max(prediction)
+
+
 # Configuration
 UPDATE_INTERVAL = 2.0  # Seconds between classifications
 TOOLTIP_DURATION = 2000  # Milliseconds to display tooltip
@@ -49,15 +58,7 @@ class ScreenClassifier:
     def classify_screen(self):
         """Capture and classify screen content"""
         screenshot = pyautogui.screenshot()
-        image = ImageOps.fit(screenshot, (224, 224), Image.Resampling.LANCZOS)
-        image_array = np.asarray(image)
-        normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
-        data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
-        data[0] = normalized_image_array
-        
-        prediction = model.predict(data)
-        index = np.argmax(prediction)
-        return class_names[index], prediction[0][index]
+        return classify_image(screenshot)
 
     def run_classification(self):
         """Background classification loop"""

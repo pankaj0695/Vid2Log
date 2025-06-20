@@ -17,9 +17,7 @@ OUTPUT_CSV = "scene_classification.csv"
 model = load_model(MODEL_PATH, compile=False)
 class_names = [line.strip() for line in open(LABELS_PATH, "r").readlines()]
 
-def classify_frame(frame):
-    """Classify a single frame using the loaded model"""
-    image = Image.fromarray(frame).convert("RGB")
+def classify_image(image):
     image = ImageOps.fit(image, (224, 224), Image.Resampling.LANCZOS)
     image_array = np.asarray(image)
     normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
@@ -49,7 +47,8 @@ def process_video():
         
         timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000  # Current time in seconds
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        class_label, confidence = classify_frame(frame_rgb)
+        image = Image.fromarray(frame_rgb).convert("RGB")
+        class_label, confidence = classify_image(image)
         
         if class_label != current_class:
             if current_class is not None:  # Save previous scene

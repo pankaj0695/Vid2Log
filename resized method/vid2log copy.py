@@ -11,8 +11,13 @@ np.set_printoptions(suppress=True)
 model = load_model("converted_keras2/keras_Model.h5", compile=False)
 class_names = [line.strip() for line in open("converted_keras2/labels.txt", "r").readlines()]
 
-# Configure input shape
-data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+def classify_image(image):
+    image = ImageOps.fit(image, (224, 224), Image.Resampling.LANCZOS)
+    image_array = np.asarray(image)
+    normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
+    data = np.expand_dims(normalized_image_array, axis=0)
+    prediction = model.predict(data)
+    return class_names[np.argmax(prediction)], np.max(prediction)
 
 # Paths
 input_folder = "input_frames"
@@ -36,16 +41,8 @@ for filename in os.listdir(input_folder):
         try:
             # Preprocess image
             image = Image.open(image_path).convert("RGB")
-            image = ImageOps.fit(image, (224, 224), Image.Resampling.LANCZOS)
-            image_array = np.asarray(image)
-            normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
-            data[0] = normalized_image_array
-
-            # Predict
-            prediction = model.predict(data)
-            index = np.argmax(prediction)
-            predicted_class = class_names[index]  # Get class name (e.g., "1.1" → "chrome")
-            confidence = prediction[0][index]
+            
+            predicted_class,confidence = classify_image(image)
 
             # Move image to class folder
             dest_folder = os.path.join(output_root, predicted_class)
