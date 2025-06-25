@@ -29,7 +29,7 @@ def resize_with_padding(img_path, output_size=(224, 224), pad_color=(0, 0, 0)):
     return padded_img
 
 # Example usage
-input_folder = "./input_frames"  # Folder containing screenshots
+input_folder = "./inputframes"  # Folder containing screenshots
 output_folder = "output_images"  # Folder to save resized images
 
 os.makedirs(output_folder, exist_ok=True)

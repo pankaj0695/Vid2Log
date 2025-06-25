@@ -5,3 +5,6 @@ venv/*
 tempCodeRunnerFile.py
 classified_output
 scene_classification.csv
+output_images
+inputframes
+scenes
