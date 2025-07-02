@@ -19,7 +19,7 @@ from PIL import Image
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 def classify_addBar(full_img):
     width, height = full_img.size
-    address_bar_region = (0, 0, width, 150)  # (left, top, right, bottom)
+    address_bar_region = (0, 0, width, 250)  # (left, top, right, bottom)
     cropped_img = full_img.crop(address_bar_region)
     text = pytesseract.image_to_string(cropped_img)
     print(text) if "vid2log" not in text else ()
