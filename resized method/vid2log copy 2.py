@@ -6,12 +6,12 @@ from keras.models import load_model
 from PIL import Image, ImageOps
 from datetime import timedelta
 
-analyze=-1 #4*3600+18*60+16
+analyze= -1 #4*3600+37*60+55
 
 # Configuration
-INPUT_VIDEO = "input_video/2025-02-02 14-20-19.mkv"  # Relative path to your video
+INPUT_VIDEO = "input_video/3/2025-02-02 09-54-26p.mkv"  # Relative path to your video
 FPS = 2  # Frames to process per second
-OUTPUT_CSV = "scenes/v2_scene_classification_6______ayush.csv"
+OUTPUT_CSV = "scenes/v1_scene_classification_3__________pratiksha.csv"
 
 # Load model
 model = load_model("new model/v2imp1_converted_keras_resized/keras_Model.h5", compile=False)
@@ -28,8 +28,8 @@ def classify_addBar(full_img):
     address_bar_region = (0, 0, width, 250)  # (left, top, right, bottom)
     cropped_img = full_img.crop(address_bar_region)
     text = pytesseract.image_to_string(cropped_img)
-    if analyze>-1:
-        print(text) if "vid2log" not in text else ()
+    #if analyze>-1:
+        #print(text) if "vid2log" not in text else ()
     if('docs.google.com' in text or 'docs.googlecom' in text or 'docs. google.com' in text or 'docs google.com' in text):
         return (4)
     elif('reddit.com' in text or 'whatsapp.com' in text or 'mail.google.com' in text or 'mailgooglecom' in text or 'mailgoogle.com' in text):
@@ -98,9 +98,9 @@ def process_video():
         if frame_count % frame_interval != 0:
             continue
         
-        if analyze>-1:
-            if cap.get(cv2.CAP_PROP_POS_MSEC) / 1000>analyze+20:
-                break
+        # if analyze>-1:
+        #     if cap.get(cv2.CAP_PROP_POS_MSEC) / 1000>analyze+20:
+        #         break
         
         timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000  # Current time in seconds
         if analyze>-1:
@@ -108,7 +108,8 @@ def process_video():
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame_rgb).convert("RGB")
         class_label, confidence = classify_image(image)
-        
+        if analyze>-1:
+            print(class_label,confidence)
         if class_label != current_class:
             if current_class is not None:  # Save previous scene
                 scenes.append({
