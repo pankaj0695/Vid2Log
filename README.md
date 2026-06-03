@@ -40,6 +40,14 @@ A Streamlit web application that analyzes videos to classify and log different a
 4. Click "Process Video" to start the analysis
 5. Once processing is complete, download the results as a CSV file
 
+### Demo
+
+
+
+https://github.com/user-attachments/assets/2afbbabc-394f-472d-8652-e09fc3c64771
+
+
+
 ## Features
 
 - Supports multiple video formats (mp4, avi, mov, mkv)
