@@ -1,0 +1,15 @@
+input_video/*
+input_frames/*
+.venv/*
+.venv
+.env
+tempCodeRunnerFile.py
+classified_output
+scene_classification.csv
+output_images
+inputframes
+scenes
+extracted_frames
+temptemp
+tfenv/*
+__pycache__

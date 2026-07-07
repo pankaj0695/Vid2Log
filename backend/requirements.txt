@@ -1,0 +1,45 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-multipart
+python-dotenv
+
+# Cloudinary (temporary video storage, permanent model/report storage)
+cloudinary
+
+# Firebase Admin (Auth verification + Firestore)
+firebase-admin
+
+# Job queue
+redis
+rq
+
+# Video / image processing (mirrors streamlit_application/requirements.txt)
+opencv-python-headless
+# Pinned to a modern range with prebuilt wheels — left unpinned, pip's
+# resolver can wander into ancient pre-2011 releases (e.g. 1.7.8) that don't
+# build on current Python/macOS at all (`use_2to3 is invalid`).
+Pillow>=10.0,<13
+numpy
+
+# Model training + inference
+# Platform markers pick the right TensorFlow build automatically:
+#   - Apple Silicon (M1/M2/M3): tensorflow-macos (+ tensorflow-metal for GPU
+#     acceleration via the Neural Engine/GPU — optional but faster training)
+#   - Everyone else (Linux/Windows/Intel Mac): plain tensorflow
+tensorflow-macos; sys_platform == "darwin" and platform_machine == "arm64"
+tensorflow-metal; sys_platform == "darwin" and platform_machine == "arm64"
+tensorflow; sys_platform != "darwin" or platform_machine != "arm64"
+tf-keras
+
+# Metrics + data handling for the training pipeline
+pandas
+scikit-learn
+
+# Sequential / Differential Pattern Mining: hand-rolled in
+# app/services/sequence_mining.py — no external dependency (the `prefixspan`
+# PyPI package pulls in `extratools`, which hard-pins an ancient Pillow
+# version that fails to build on modern Python/macOS).
+
+# HTTP downloads (Cloudinary video -> local temp file)
+requests
