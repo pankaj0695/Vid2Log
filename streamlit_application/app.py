@@ -4,7 +4,7 @@ import tempfile
 import shutil
 from datetime import timedelta
 import time
-from streamlit_application.video_processor import process_video, write_to_csv
+from video_processor import process_video, write_to_csv
 
 # Set page config
 st.set_page_config(

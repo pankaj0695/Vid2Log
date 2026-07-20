@@ -1,9 +1,13 @@
 """
-Firebase Admin — used for two things only:
+Firebase Admin — used for three things:
   1. Verifying the Firebase Auth ID token the frontend sends on every request
      (Authorization: Bearer <token>).
   2. Firestore as the metadata store: jobs, logs (scenes), the model registry,
-     and training jobs. (Videos themselves live in Cloudinary, temporarily.)
+     and training jobs. (Videos/training images/model files themselves live
+     in a STANDALONE Google Cloud Storage bucket — not Firebase Storage —
+     temporarily or permanently depending on the asset; see
+     app/services/gcs_service.py, which uses its own `google.cloud.storage.Client`
+     rather than anything initialized here.)
 
 The app is designed to boot even if Firebase isn't configured yet (e.g. first
 `docker compose up` before secrets are filled in) — auth/Firestore-backed
@@ -48,8 +52,10 @@ def init_firebase() -> None:
             # service account attached) if no explicit path is set.
             cred = credentials.ApplicationDefault()
 
-        options = {"projectId": settings.firebase_project_id} if settings.firebase_project_id else None
-        _app = firebase_admin.initialize_app(cred, options)
+        options = {}
+        if settings.firebase_project_id:
+            options["projectId"] = settings.firebase_project_id
+        _app = firebase_admin.initialize_app(cred, options or None)
         _db = firestore.client()
         log.info("Firebase Admin initialized (project=%s).", settings.firebase_project_id)
     except Exception:
@@ -99,3 +105,15 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or expired Firebase ID token: {e}",
         )
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """FastAPI dependency for admin-only endpoints. Looks the caller's role
+    up fresh from Firestore's `users` collection on every request — role is
+    only ever promoted by hand there, never through the API, so this is the
+    single source of truth (never trust a role claimed by the client)."""
+    db = get_db()
+    doc = db.collection("users").document(user["uid"]).get()
+    if not doc.exists or doc.to_dict().get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+    return user

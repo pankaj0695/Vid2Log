@@ -33,12 +33,20 @@ def get_log(job_id: str, user: dict = Depends(get_current_user)):
 def get_log_csv(job_id: str, user: dict = Depends(get_current_user)):
     """Same content as the Streamlit app's downloadable CSV, generated
     on-the-fly from the Firestore-stored scene rows (no CSV file is kept in
-    Cloudinary — it's cheap to regenerate and Firestore is the source of truth)."""
+    Cloud Storage — it's cheap to regenerate and Firestore is the source of truth)."""
     db = get_db()
     data = _get_owned_job(db, job_id, user)
 
     buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=["start_time", "end_time", "duration", "class", "confidence"])
+    # `source` records which tier decided the final label for that scene:
+    # "cnn" (visual only), "keyword_rule", or "fusion" (CNN+OCR text) — see
+    # app/ml/hybrid_classifier.py. extrasaction="ignore" keeps this forward
+    # compatible if scene rows ever gain further debug fields.
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=["start_time", "end_time", "duration", "class", "confidence", "source"],
+        extrasaction="ignore",
+    )
     writer.writeheader()
     for row in data.get("scenes", []):
         writer.writerow(row)
@@ -64,7 +72,9 @@ def combine_logs(job_ids: list[str], user: dict = Depends(get_current_user)):
         data = _get_owned_job(db, job_id, user)
         if writer is None:
             writer = csv.DictWriter(
-                buffer, fieldnames=["video_id", "start_time", "end_time", "duration", "class", "confidence"]
+                buffer,
+                fieldnames=["video_id", "start_time", "end_time", "duration", "class", "confidence", "source"],
+                extrasaction="ignore",
             )
             writer.writeheader()
         for row in data.get("scenes", []):

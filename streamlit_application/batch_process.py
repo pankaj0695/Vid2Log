@@ -37,7 +37,7 @@ def csv_path_for(video: Path, output_dir: Path) -> Path:
 
 
 def main():
-    from streamlit_application.video_processor import process_video, write_to_csv
+    from video_processor import process_video, write_to_csv
 
     output_dir = Path(OUTPUT_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)

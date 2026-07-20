@@ -1,11 +1,10 @@
 """
-Loads a MobileNet-based classifier (either the bundled default model, or a
-model pulled from the Model Registry / Cloudinary) and exposes a single
-`classify_image(image) -> (class_name, confidence)` function per model.
+Loads models for the vid2log classification pipeline and assembles a
+HybridClassifier (CNN + optional OCR text classifier + keyword rules) for a
+given model — either the bundled default (mirrors the original Streamlit
+app exactly) or one pulled from the Model Registry / Cloud Storage.
 
-This mirrors streamlit_application/video_processor.py's preprocessing exactly
-(224x224 resize-with-padding, /127.5 - 1 normalization) so results are
-consistent with the existing Streamlit app during the migration.
+get_hybrid_classifier() is the entry point used by the video pipeline.
 """
 import logging
 from pathlib import Path
@@ -16,15 +15,19 @@ from PIL import Image
 from tf_keras.layers import DepthwiseConv2D
 from tf_keras.models import load_model
 
-from app.utils import download_file
+from app.ml.hybrid_classifier import ClassifyFn, HybridClassifier
+from app.ml.preprocessing import resize_with_padding
+from app.ml.text_classifier import load_text_classifier
+from app.services import gcs_service
 
 log = logging.getLogger(__name__)
 
 _DEFAULT_MODEL_DIR = Path(__file__).parent / "default_model"
 _CACHE_DIR = Path("/tmp/vid2log_models")
 
-# In-process cache: model_id -> (model, class_names)
-_model_cache: Dict[str, Tuple[object, List[str]]] = {}
+# In-process caches, keyed by model_id ("__default__" for the bundled model).
+_cnn_cache: Dict[str, Tuple[object, List[str]]] = {}
+_text_model_cache: Dict[str, object] = {}
 
 
 class _DepthwiseConv2DCompat(DepthwiseConv2D):
@@ -36,7 +39,7 @@ class _DepthwiseConv2DCompat(DepthwiseConv2D):
         super().__init__(*args, **kwargs)
 
 
-def _load_from_disk(h5_path: Path, labels_path: Path):
+def _load_cnn_from_disk(h5_path: Path, labels_path: Path):
     model = load_model(
         str(h5_path), compile=False, custom_objects={"DepthwiseConv2D": _DepthwiseConv2DCompat}
     )
@@ -44,67 +47,69 @@ def _load_from_disk(h5_path: Path, labels_path: Path):
     return model, class_names
 
 
-def _get_default() -> Tuple[object, List[str]]:
-    if "__default__" not in _model_cache:
+def _get_default_cnn() -> Tuple[object, List[str]]:
+    if "__default__" not in _cnn_cache:
         log.info("Loading default bundled model from %s", _DEFAULT_MODEL_DIR)
-        _model_cache["__default__"] = _load_from_disk(
+        _cnn_cache["__default__"] = _load_cnn_from_disk(
             _DEFAULT_MODEL_DIR / "keras_model.h5", _DEFAULT_MODEL_DIR / "labels.txt"
         )
-    return _model_cache["__default__"]
+    return _cnn_cache["__default__"]
 
 
-def get_classifier(
-    model_id: Optional[str] = None,
-    cloudinary_model_url: Optional[str] = None,
-    labels: Optional[List[str]] = None,
-):
-    """
-    Returns (classify_fn, class_names) for the requested model.
-
-    - model_id=None -> the bundled default model (what the Streamlit app uses today).
-    - model_id + cloudinary_model_url + labels -> downloads (once) and caches
-      that model's .h5 from Cloudinary, then loads it.
-    """
-    if model_id is None:
-        model, class_names = _get_default()
-    else:
-        if model_id not in _model_cache:
-            if not cloudinary_model_url or not labels:
-                raise ValueError(
-                    f"Model '{model_id}' is not cached and no cloudinary_model_url/labels "
-                    "were provided to fetch it."
-                )
-            local_dir = _CACHE_DIR / model_id
-            h5_path = local_dir / "keras_model.h5"
-            if not h5_path.exists():
-                log.info("Downloading model %s from Cloudinary...", model_id)
-                download_file(cloudinary_model_url, h5_path)
-            labels_path = local_dir / "labels.txt"
-            labels_path.write_text("\n".join(labels))
-            _model_cache[model_id] = _load_from_disk(h5_path, labels_path)
-        model, class_names = _model_cache[model_id]
-
-    def classify_image(image: Image.Image) -> Tuple[str, float]:
-        resized = _resize_with_padding(image)
+def _make_cnn_classify_fn(model, class_names: List[str]) -> ClassifyFn:
+    def classify_image(image: Image.Image) -> Tuple[str, float, np.ndarray]:
+        resized = resize_with_padding(image)
         arr = np.asarray(resized).astype(np.float32)
         normalized = (arr / 127.5) - 1
         data = np.expand_dims(normalized, axis=0)
-        prediction = model(data, training=False).numpy()
-        idx = int(np.argmax(prediction))
-        return class_names[idx], float(np.max(prediction))
+        probs = model(data, training=False).numpy()[0]
+        idx = int(np.argmax(probs))
+        return class_names[idx], float(probs[idx]), probs
 
-    return classify_image, class_names
+    return classify_image
 
 
-def _resize_with_padding(img: Image.Image, output_size=(224, 224), pad_color=(0, 0, 0)) -> Image.Image:
-    original_width, original_height = img.size
-    target_width, target_height = output_size
-    scale = min(target_width / original_width, target_height / original_height)
-    new_width = int(original_width * scale)
-    new_height = int(original_height * scale)
-    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    padded = Image.new("RGB", (target_width, target_height), pad_color)
-    x_offset = (target_width - new_width) // 2
-    y_offset = (target_height - new_height) // 2
-    padded.paste(img, (x_offset, y_offset))
-    return padded
+def get_hybrid_classifier(model_doc: Optional[dict] = None) -> HybridClassifier:
+    """
+    model_doc: the Firestore `models/{id}` document dict for the requested
+    model, or None to use the bundled default (CNN only, no text fusion —
+    identical behavior to the original Streamlit app).
+    """
+    if model_doc is None:
+        model, class_names = _get_default_cnn()
+        return HybridClassifier(cnn_classify_fn=_make_cnn_classify_fn(model, class_names), class_names=class_names)
+
+    model_id = model_doc["model_id"]
+    class_names = model_doc["labels"]
+
+    if model_id not in _cnn_cache:
+        local_dir = _CACHE_DIR / model_id
+        h5_path = local_dir / "keras_model.h5"
+        if not h5_path.exists():
+            log.info("Downloading CNN for model %s from Cloud Storage...", model_id)
+            gcs_service.download_blob(model_doc["model_storage_path"], h5_path)
+        labels_path = local_dir / "labels.txt"
+        labels_path.write_text("\n".join(class_names))
+        _cnn_cache[model_id] = _load_cnn_from_disk(h5_path, labels_path)
+    model, cached_class_names = _cnn_cache[model_id]
+
+    text_model = None
+    text_storage_path = model_doc.get("text_model_storage_path")
+    if text_storage_path:
+        if model_id not in _text_model_cache:
+            local_path = _CACHE_DIR / model_id / "text_model.joblib"
+            if not local_path.exists():
+                log.info("Downloading text classifier for model %s from Cloud Storage...", model_id)
+                gcs_service.download_blob(text_storage_path, local_path)
+            _text_model_cache[model_id] = load_text_classifier(local_path)
+        text_model = _text_model_cache[model_id]
+
+    return HybridClassifier(
+        cnn_classify_fn=_make_cnn_classify_fn(model, cached_class_names),
+        class_names=cached_class_names,
+        text_model=text_model,
+        keyword_rules=model_doc.get("keyword_rules"),
+        fusion_alpha=model_doc.get("fusion_alpha", 0.6),
+        fusion_alpha_per_class=model_doc.get("fusion_alpha_per_class"),
+        ocr_roi=model_doc.get("ocr_roi"),
+    )

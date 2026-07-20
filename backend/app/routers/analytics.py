@@ -5,6 +5,7 @@ become one ordered sequence of activity labels (e.g.
 ["ProblemStatement", "GameWorkspace", "ProductSelection", ...]); a PrefixSpan-
 style algorithm mines frequent sub-sequences across many such sequences.
 """
+import math
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -29,12 +30,32 @@ def _job_sequence(db, job_id: str, user: dict) -> List[str]:
     return [row["class"] for row in data.get("scenes", [])]
 
 
+# Hard cap on how long a mined pattern is allowed to get. Without this, a
+# handful of videos whose scenes flicker back and forth between a small set
+# of classes (very common — a frame-by-frame classifier naturally produces
+# many short scenes) gives PrefixSpan an exponential number of "frequent"
+# sub-sequences to enumerate once support filtering stops pruning much (see
+# the min_support_count comment below) — in practice this looked like the
+# request hanging forever with no error, not a crash. A pattern of even 8
+# steps is already far more than anyone reads as one "workflow," so this
+# caps runaway recursion without losing anything useful.
+MAX_PATTERN_LEN = 8
+
+
 def _frequent_patterns(sequences: List[List[str]], min_support_fraction: float, top_k: int):
     if not sequences:
         return []
-    min_support_count = max(1, int(min_support_fraction * len(sequences)))
+    # ceil, not int()/floor: with int(), a fraction*count that lands between
+    # 0 and 1 (e.g. 0.3 * 5 videos = 1.5 -> int() truncates to 1) silently
+    # produces a minimum support of "appears in at least 1 video" — which is
+    # every pattern that exists at all, i.e. no filtering. That combined with
+    # PrefixSpan's recursive projection is what turned a handful of selected
+    # videos into a practically-unbounded search (the "Run SPM" hang). ceil()
+    # makes "0.3 of 5 videos" mean "at least 2", matching what a user reading
+    # "30% of videos" actually expects.
+    min_support_count = max(1, math.ceil(min_support_fraction * len(sequences)))
     # min_len=2: single-item "patterns" aren't very informative here
-    results = _mine_patterns(sequences, min_support_count, min_len=2)
+    results = _mine_patterns(sequences, min_support_count, min_len=2, max_len=MAX_PATTERN_LEN)
     results.sort(key=lambda r: r[0], reverse=True)
     return results[:top_k]
 

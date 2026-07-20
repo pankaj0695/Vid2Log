@@ -21,26 +21,26 @@ Today, producing one activity log requires: training a model by hand on Teachabl
 ## 2. Target Architecture
 
 ```
-┌─────────────────────────-┐      ┌──────────────────────────────┐
+┌──────────────────────────┐      ┌──────────────────────────────┐
 │   Next.js Frontend       │      │      Firebase                │
 │  - Dashboard             │◄────►│  - Auth (multi-user, roles)  │
 │  - Training UI           │      │  - Firestore (jobs, models,  │
 │  - Log Visualizations    │      │    users, scenes, metadata)  │
-│  - SPM / DSM Analytics   │      └──────────────────────────────┘
-│                          │◄──── directly uploads video ────┐
-└───────────┬──────────────┘      (unsigned preset)          │
-            │ REST/WebSocket                                 ▼
-            ▼                                       ┌───────────────────────┐
-┌────────────────────────-─┐                        │     Cloudinary        │
-│   FastAPI Backend        │                        │  TEMP: video (deleted │
-│  - Auth middleware (Firebase Admin SDK)           │  after processing)    │
-│  - /train  /jobs  /logs  /analytics  /models      │  PERM: .h5 models     │
-└───────────┬──────────────┘                        │  (raw resource type)  │
-            ▼                                       └─────────────────┬─────┘
-┌─────────────────────────┐      ┌──────────────────────────────┐     |
-│  Job Queue (Redis +     │◄────►│  Worker Pool                 │◄────┘
+│  - SPM / DSM Analytics   │      │  - Storage (video/image/     │
+│                          │◄────►│    model blobs — GCS)        │
+└───────────┬──────────────┘      └──────────────────────────────┘
+            │ REST/WebSocket        (direct browser upload via
+            ▼                        the Storage client SDK)
+┌──────────────────────────┐
+│   FastAPI Backend        │
+│  - Auth middleware (Firebase Admin SDK)
+│  - /train  /jobs  /logs  /analytics  /models
+└───────────┬──────────────┘
+            ▼
+┌─────────────────────────┐      ┌──────────────────────────────┐
+│  Job Queue (Redis +     │◄────►│  Worker Pool                 │
 │  Celery/RQ)             │      │  - Downloads video from      │
-└─────────────────────────┘      │    Cloudinary, classifies,   │
+└─────────────────────────┘      │    Cloud Storage, classifies,│
                                  │    saves log, deletes video  │
                                  │  - Model training (transfer  │
                                  │    learning + test metrics)  │
@@ -48,7 +48,7 @@ Today, producing one activity log requires: training a model by hand on Teachabl
                                  └──────────────────────────────┘
 ```
 
-Frontend and backend are decoupled (Next.js ↔ FastAPI over REST), Firebase handles auth and metadata/state so neither service is stateful, and the worker pool scales independently of the API — this is what makes multi-user, parallel, API-first operation possible. Cloudinary sits alongside Firebase purely as **ephemeral video storage plus a durable model store** (see §3.2a) — it is not a general replacement for Firestore.
+Frontend and backend are decoupled (Next.js ↔ FastAPI over REST), Firebase handles auth and metadata/state, a standalone Cloud Storage bucket handles file storage, and the worker pool scales independently of the API — this is what makes multi-user, parallel, API-first operation possible. Cloud Storage holds files purely as **ephemeral video/image storage plus a durable model store** (see §3.2a) — it is not a general replacement for Firestore. (This used to be Cloudinary; see §3.2a for why it moved.)
 
 ---
 
@@ -62,17 +62,17 @@ Transfer learning on MobileNetV2, run from the Next.js UI or the API. Stratified
 
 Celery/RQ workers pull one video per job from the queue; pool size scales to available CPU cores. Replaces the current sequential `batch_process.py` loop. Job status lives in Firestore, so the dashboard shows live per-video progress across an entire batch instead of one progress bar.
 
-### 3.2a Video Storage Lifecycle (Cloudinary, temporary only)
+### 3.2a Video Storage Lifecycle (Cloud Storage, temporary only)
 
-Firebase Storage is paid past its free tier, so **Cloudinary** holds videos instead — but only for the duration of one processing job, never permanently:
+**Cloud Storage** — a standalone GCS bucket, deliberately NOT Firebase Storage (which requires the whole Firebase project to be on the pay-as-you-go Blaze plan; a plain GCS bucket does not) — holds videos and training images, but only for the duration of one processing/training job, never permanently:
 
-1. The frontend uploads the video **directly to Cloudinary** using an **unsigned upload preset** (no API key/secret ever touches the browser); Cloudinary returns a `public_id`/URL.
-2. The frontend calls `POST /jobs` with that reference only — the backend never receives raw video bytes.
-3. A worker downloads the video from Cloudinary to local disk, classifies it, and writes the resulting scene log to Firestore (the durable output).
-4. The worker deletes its local copy (always, even on error) and then **deletes the video from Cloudinary** once the log is safely saved.
+1. The frontend asks the backend for a short-lived **signed upload URL** (`POST /uploads/signed-url`), scoped to the current user's own uid-prefixed path, then `PUT`s the video directly to Cloud Storage with it (no API secret, and no raw bytes, ever touch our own server).
+2. The frontend calls `POST /jobs` with the resulting blob path only — the backend never receives raw video bytes.
+3. A worker downloads the video from Cloud Storage to local disk (via the backend's own service-account credentials — no public URL involved), classifies it, and writes the resulting scene log to Firestore (the durable output).
+4. The worker deletes its local copy (always, even on error) and then **deletes the blob from Cloud Storage** once the log is safely saved.
 5. A scheduled cleanup job (cron / Cloud Scheduler hitting `POST /admin/cleanup-stale-videos`) is a safety net that reclaims any video a crashed worker failed to delete.
 
-Only two things persist long-term in Cloudinary: trained `.h5` model files (as `resource_type=raw`) and, optionally, exported reports — both tiny compared to raw video, keeping storage cost close to zero.
+Only two things persist long-term: trained `.h5`/`.joblib` model files and, optionally, exported reports — both tiny compared to raw video, keeping storage cost close to zero. (This was Cloudinary through the first build-out; it moved to Cloud Storage because Cloudinary's free plan caps raw-file uploads at 10MB, which trained models exceed. A standalone GCS bucket — rather than Firebase Storage — keeps this on Cloud Storage's own free tier for light usage, rather than requiring the whole project to be upgraded to Firebase's Blaze plan.)
 
 ### 3.3 Unified Dashboard (Next.js)
 
@@ -115,7 +115,7 @@ Both run as background jobs (same worker pool as video processing) and results a
 | Backend API        | FastAPI                                         | Async, auto-generated OpenAPI docs, native fit for ML inference/training endpoints                                                                                                                                   |
 | Auth               | Firebase Auth                                   | Managed, multi-provider, minimal setup                                                                                                                                                                               |
 | Database           | Firestore                                       | Managed, scales with usage, holds job status / model registry / user & analytics metadata                                                                                                                            |
-| File storage       | Cloudinary                                      | **Temporary** video storage via unsigned upload preset (deleted right after processing) + **permanent** `.h5` model storage (raw resource type). Chosen over Firebase Storage to avoid paid-tier cost. |
+| File storage       | Cloud Storage (standalone GCS bucket)           | **Temporary** video/training-image storage via backend-issued signed upload URLs (deleted right after processing) + **permanent** `.h5`/`.joblib` model storage. Same GCP project and service-account credentials as Firestore, but NOT Firebase-managed Storage (avoids requiring the Blaze billing plan). |
 | Job queue          | Redis + Celery/RQ                               | Decouples upload from processing; enables parallel workers                                                                                                                                                           |
 | Training/inference | TensorFlow/Keras (MobileNetV2)                  | Compatible with existing`.h5` model contract, CPU-sufficient                                                                                                                                                       |
 | Pattern mining     | PrefixSpan/GSP-based SPM, custom DSM comparator | Standard, well-understood sequence-mining approach                                                                                                                                                                   |
@@ -140,14 +140,13 @@ Inference and training here are both CPU-feasible at this model size (2.4 MB Mob
 
 - Frontend + FastAPI backend on **Cloud Run** (CPU-only, scales to zero when idle).
 - Workers as **Cloud Run Jobs** (add an L4 GPU only if/when training volume justifies it).
-- Firebase Auth + Firestore — native fit, zero extra integration work, all within the same GCP project.
+- Firebase Auth + Firestore, plus a standalone Cloud Storage bucket for files — all within the same GCP project, minimal extra integration work, no Blaze billing plan requirement.
 - Redis via **Memorystore** (or a small self-managed instance for cost).
-- Cloudinary is a third-party SaaS reachable equally from GCP or an IIT server — it isn't tied to either platform choice.
 
 **IIT Bombay server:**
 
 - Viable for hosting the FastAPI backend, workers, and Redis/Postgres if compute/storage is available in-house — reduces cloud spend for the always-on components.
-- **Firebase Auth/Firestore and Cloudinary remain externally-hosted managed services regardless of where the app runs** — confirm the IIT server has outbound internet access to both before committing to this path.
+- **Firebase Auth/Firestore/Storage remain externally-hosted managed services regardless of where the app runs** — confirm the IIT server has outbound internet access before committing to this path.
 - Confirm with the Computer Centre (cc.iitb.ac.in, ext. 2677): available compute/storage quota, whether it supports an always-on service (vs. batch-only HPC jobs), and network egress policy.
 - Good fit as the GPU burst-compute backend for training even if the always-on app stays on GCP.
 
@@ -159,7 +158,7 @@ Both paths use the same Docker images — the choice is a cost/ownership decisio
 
 | Phase | Deliverable                                                                                              | Status                                                                                                             |
 | ----- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1     | Firebase (Auth + Firestore) + Cloudinary (unsigned preset) wired to a FastAPI skeleton and Next.js shell | ✅ Backend skeleton delivered in`backend/` — config, Cloudinary/Firebase/Redis services, all routers, RQ worker |
+| 1     | Firebase (Auth + Firestore + Storage) wired to a FastAPI skeleton and Next.js shell | ✅ Backend skeleton delivered in`backend/` — config, Firebase/Storage/Redis services, all routers, RQ worker |
 | 2     | Parallel processing engine (Celery/RQ + workers) replacing sequential batch script                       | ✅ Implemented (`app/services/video_pipeline.py`, `app/worker.py`)                                             |
 | 3     | Training module with train/val/test split and full metrics report; Model Registry                        | ✅ First working version (`app/services/training_pipeline.py`) — frozen MobileNetV2, no augmentation yet        |
 | 4     | Unified dashboard: batch upload, live job status, log visualization                                      | ⏳ Next.js frontend not yet built                                                                                  |

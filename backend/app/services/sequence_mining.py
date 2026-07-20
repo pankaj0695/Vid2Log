@@ -15,14 +15,24 @@ Support here follows the standard PrefixSpan definition: the number of
 distinct input sequences that contain the pattern as a (not necessarily
 contiguous) subsequence at least once.
 """
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 def frequent_patterns(
-    sequences: List[List[str]], min_support_count: int, min_len: int = 1
+    sequences: List[List[str]],
+    min_support_count: int,
+    min_len: int = 1,
+    max_len: Optional[int] = None,
 ) -> List[Tuple[int, List[str]]]:
     """Returns unsorted (support_count, pattern) tuples for every pattern
-    that appears in at least `min_support_count` of the input sequences."""
+    that appears in at least `min_support_count` of the input sequences.
+
+    `max_len` bounds how deep the recursion is allowed to go. Without it,
+    sequences with many repeated/interleaved items and a low min_support_count
+    (easy to hit by accident — see analytics.py's rounding fix) give this an
+    exponential number of sub-sequences to enumerate, since almost nothing
+    gets pruned by the support check. That showed up in practice as a
+    request that never returns rather than an error."""
     results: List[Tuple[int, List[str]]] = []
 
     def _project(projected: List[List[str]], prefix: List[str]) -> None:
@@ -44,6 +54,9 @@ def frequent_patterns(
             new_prefix = prefix + [item]
             if len(new_prefix) >= min_len:
                 results.append((support, new_prefix))
+
+            if max_len is not None and len(new_prefix) >= max_len:
+                continue  # don't project any deeper past the length cap
 
             # Build the projected database: everything after this item's
             # first occurrence in each sequence that contained it.

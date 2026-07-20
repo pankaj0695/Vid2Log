@@ -20,10 +20,17 @@ def _now_iso() -> str:
 def create_job(payload: JobCreateRequest, user: dict = Depends(get_current_user)):
     """
     Register a video that the frontend has ALREADY uploaded directly to
-    Cloudinary (via the unsigned preset) and enqueue it for processing.
-    We only ever receive the Cloudinary reference here, never the video bytes.
+    Cloud Storage (via the Firebase Storage client SDK) and enqueue it for
+    processing. We only ever receive the storage path here, never the video
+    bytes.
     """
     db = get_db()
+
+    if payload.model_id:
+        model_doc = db.collection("models").document(payload.model_id).get()
+        if not model_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Model '{payload.model_id}' not found in registry")
+
     job_id = str(uuid.uuid4())
 
     doc = {
@@ -31,8 +38,7 @@ def create_job(payload: JobCreateRequest, user: dict = Depends(get_current_user)
         "status": "queued",
         "owner_uid": user["uid"],
         "original_filename": payload.original_filename,
-        "cloudinary_public_id": payload.cloudinary_public_id,
-        "cloudinary_url": payload.cloudinary_url,
+        "storage_path": payload.storage_path,
         "resource_type": payload.resource_type,
         "fps": payload.fps,
         "model_id": payload.model_id,
@@ -46,14 +52,21 @@ def create_job(payload: JobCreateRequest, user: dict = Depends(get_current_user)
 
 @router.get("", response_model=list[JobOut])
 def list_jobs(limit: int = 50, user: dict = Depends(get_current_user)):
+    """
+    Deliberately does NOT combine `.where(owner_uid==...)` with
+    `.order_by(created_at)` in the same Firestore query — Firestore requires
+    a manually-created composite index for that combination, and without one
+    the query raises FailedPrecondition, which (being an unhandled exception
+    rather than an HTTPException) skips right past our CORS middleware and
+    shows up in the browser as a confusing "blocked by CORS policy" error
+    instead of a clear message. Filtering with Firestore and sorting/limiting
+    in Python sidesteps the index requirement entirely — completely fine at
+    one-user's-jobs scale.
+    """
     db = get_db()
-    query = (
-        db.collection("jobs")
-        .where("owner_uid", "==", user["uid"])
-        .order_by("created_at", direction="DESCENDING")
-        .limit(limit)
-    )
-    return [_to_job_out(d.to_dict()) for d in query.stream()]
+    docs = [d.to_dict() for d in db.collection("jobs").where("owner_uid", "==", user["uid"]).stream()]
+    docs.sort(key=lambda d: d.get("created_at") or "", reverse=True)
+    return [_to_job_out(d) for d in docs[:limit]]
 
 
 @router.get("/{job_id}", response_model=JobOut)

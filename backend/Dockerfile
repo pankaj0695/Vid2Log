@@ -1,9 +1,11 @@
 FROM python:3.11-slim
 
-# OpenCV needs these system libs even in "headless" mode
+# OpenCV needs these system libs even in "headless" mode; tesseract-ocr is
+# the actual OCR engine that pytesseract (a thin Python wrapper) calls out to.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
