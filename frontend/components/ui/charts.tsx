@@ -88,9 +88,9 @@ export function BarChart({
 }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
-    <div className="flex items-end gap-2" style={{ height }}>
+    <div className="flex w-full items-end gap-2 overflow-hidden" style={{ height }}>
       {data.map((d, i) => (
-        <div key={d.label} className="flex flex-1 flex-col items-center justify-end gap-1.5">
+        <div key={d.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
           <span className="font-mono text-xs text-neutral-500">{d.value}</span>
           <div
             className="w-full rounded-t-md transition-[height]"
@@ -116,11 +116,15 @@ export function HorizontalBarChart({
 }) {
   const max = Math.max(...data.map((d) => d.value), 1e-9);
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {data.map((d, i) => (
         <div key={i}>
-          <div className="mb-1 flex items-center justify-between gap-3 text-xs text-neutral-500">
-            <span className="truncate font-mono text-text">{d.label}</span>
+          {/* Label gets the full row width and wraps instead of truncating —
+              pattern labels (e.g. "A → B → C → D") can be too long for a
+              single line, and cropping them defeats the point of showing
+              the pattern at all. */}
+          <div className="mb-1 flex items-start justify-between gap-3 text-xs text-neutral-500">
+            <span className="break-words font-mono text-text">{d.label}</span>
             {d.hint && <span className="shrink-0 font-mono">{d.hint}</span>}
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
@@ -157,14 +161,24 @@ export function DivergingBarChart({
           <span className="h-2 w-2 rounded-full bg-secondary" /> {bLabel}
         </span>
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {data.map((d, i) => {
           const pct = (Math.abs(d.diff) / maxAbs) * 50; // half-width max
           const positive = d.diff >= 0;
           return (
-            <div key={i} className="flex items-center gap-3">
-              <span className="w-1/3 shrink-0 truncate text-right font-mono text-xs text-text">{d.label}</span>
-              <div className="relative h-2 flex-1 rounded-full bg-neutral-100">
+            // Label sits on its own full-width line above the bar instead
+            // of a fixed-width side column — a side column forces long
+            // pattern labels ("A → B → C → D") to truncate; a full-width
+            // line lets them wrap instead.
+            <div key={i}>
+              <div className="mb-1 flex items-start justify-between gap-3 text-xs">
+                <span className="break-words font-mono text-text">{d.label}</span>
+                <span className="shrink-0 font-mono text-neutral-500">
+                  {positive ? "+" : ""}
+                  {(d.diff * 100).toFixed(0)}pp
+                </span>
+              </div>
+              <div className="relative h-2 w-full rounded-full bg-neutral-100">
                 <div className="absolute inset-y-0 left-1/2 w-px bg-neutral-300" />
                 <div
                   className={`absolute inset-y-0 rounded-full ${positive ? "bg-primary" : "bg-secondary"}`}
@@ -175,10 +189,6 @@ export function DivergingBarChart({
                   }
                 />
               </div>
-              <span className="w-14 shrink-0 font-mono text-xs text-neutral-500">
-                {positive ? "+" : ""}
-                {(d.diff * 100).toFixed(0)}pp
-              </span>
             </div>
           );
         })}

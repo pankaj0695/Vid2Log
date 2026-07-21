@@ -17,6 +17,7 @@ export interface JobOut {
   job_id: string;
   status: JobStatus;
   original_filename: string;
+  display_name: string | null;
   model_id: string | null;
   scene_count: number | null;
   error: string | null;

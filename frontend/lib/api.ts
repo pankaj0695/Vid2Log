@@ -96,6 +96,13 @@ export const api = {
     list: (limit = 50) => request<JobOut[]>(`/jobs?limit=${limit}`),
     get: (jobId: string) => request<JobOut>(`/jobs/${jobId}`),
     cancel: (jobId: string) => request<{ status: string; note?: string }>(`/jobs/${jobId}`, { method: "DELETE" }),
+    rename: (jobId: string, displayName: string) =>
+      request<JobOut>(`/jobs/${jobId}`, { method: "PATCH", body: JSON.stringify({ display_name: displayName }) }),
+    // Same endpoint as cancel() — the backend cancels a still-queued job or
+    // actually deletes a finished one depending on its status. Named
+    // separately here so call sites read clearly (Job history's "Cancel"
+    // button vs Video logs' "Delete" button).
+    remove: (jobId: string) => request<{ status: string; note?: string }>(`/jobs/${jobId}`, { method: "DELETE" }),
   },
 
   logs: {
@@ -130,6 +137,9 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ keyword_rules: keywordRules }),
       }),
+    rename: (modelId: string, name: string) =>
+      request<ModelOut>(`/models/${modelId}/rename`, { method: "PATCH", body: JSON.stringify({ name }) }),
+    remove: (modelId: string) => request<{ status: string }>(`/models/${modelId}`, { method: "DELETE" }),
   },
 
   train: {

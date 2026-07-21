@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.schemas import JobCreateRequest, JobOut
+from app.schemas import JobCreateRequest, JobOut, JobRenameRequest
+from app.services import gcs_service
 from app.services.firebase_service import get_current_user, get_db
 from app.services.queue_service import enqueue_video_job
 
@@ -81,13 +82,46 @@ def get_job(job_id: str, user: dict = Depends(get_current_user)):
     return _to_job_out(data)
 
 
+@router.patch("/{job_id}", response_model=JobOut)
+def rename_job(job_id: str, payload: JobRenameRequest, user: dict = Depends(get_current_user)):
+    """Sets a display-only name for a job's log, shown in place of
+    original_filename everywhere the frontend lists jobs. original_filename
+    itself is left untouched (it's still used as the basis for the default
+    CSV download filename)."""
+    db = get_db()
+    ref = db.collection("jobs").document(job_id)
+    doc = ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Job not found")
+    data = doc.to_dict()
+    if data.get("owner_uid") != user["uid"]:
+        raise HTTPException(status_code=403, detail="Not your job")
+
+    name = payload.display_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty")
+
+    ref.update({"display_name": name})
+    return _to_job_out({**data, "display_name": name})
+
+
 @router.delete("/{job_id}")
-def cancel_job(job_id: str, user: dict = Depends(get_current_user)):
+def cancel_or_delete_job(job_id: str, user: dict = Depends(get_current_user)):
     """
-    Best-effort cancellation: only works while the job is still `queued`.
-    Once a worker has picked it up (`processing`), RQ doesn't give us a clean
-    way to interrupt a running video-processing job, so we just mark intent —
-    the worker's own status transitions (`done`/`failed`) will win the race.
+    Dual purpose, based on the job's current status:
+
+      - `queued`: best-effort cancellation (mark intent — a worker hasn't
+        picked it up yet, so nothing is actually running to interrupt).
+      - `processing`: can't safely touch it — RQ doesn't give us a clean way
+        to interrupt a running video-processing job, so the worker's own
+        `done`/`failed` transition just wins the race.
+      - `done` / `failed` / `cancelled`: genuinely removes the job/log from
+        Firestore — this is what the frontend's "Delete" button (with its
+        own confirmation prompt) calls for a video log the user no longer
+        wants. A `done` job's source video was already deleted from Cloud
+        Storage when it finished; a `failed` job's video is cleaned up here
+        too (best-effort) since it otherwise only gets swept up later by the
+        stale-video cleanup job.
     """
     db = get_db()
     ref = db.collection("jobs").document(job_id)
@@ -97,10 +131,22 @@ def cancel_job(job_id: str, user: dict = Depends(get_current_user)):
     data = doc.to_dict()
     if data.get("owner_uid") != user["uid"]:
         raise HTTPException(status_code=403, detail="Not your job")
-    if data.get("status") == "queued":
+
+    status = data.get("status")
+    if status == "queued":
         ref.update({"status": "cancelled"})
         return {"status": "cancelled"}
-    return {"status": data.get("status"), "note": "Already picked up by a worker; cannot cancel."}
+    if status == "processing":
+        return {"status": status, "note": "Already picked up by a worker; cannot cancel."}
+
+    if status == "failed" and data.get("storage_path"):
+        try:
+            gcs_service.delete_blob(data["storage_path"])
+        except Exception:
+            log.warning("Failed to delete leftover video blob for job %s", job_id, exc_info=True)
+
+    ref.delete()
+    return {"status": "deleted"}
 
 
 def _to_job_out(data: dict) -> JobOut:
@@ -108,6 +154,7 @@ def _to_job_out(data: dict) -> JobOut:
         job_id=data["job_id"],
         status=data["status"],
         original_filename=data["original_filename"],
+        display_name=data.get("display_name"),
         model_id=data.get("model_id"),
         scene_count=data.get("scene_count"),
         error=data.get("error"),

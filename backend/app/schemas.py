@@ -75,12 +75,20 @@ class JobOut(BaseModel):
     job_id: str
     status: str  # queued | processing | done | failed | cancelled
     original_filename: str
+    # User-set override shown in place of original_filename once renamed
+    # (see PATCH /jobs/{id}) — original_filename itself never changes, so
+    # things like the default CSV download name still make sense.
+    display_name: Optional[str] = None
     model_id: Optional[str] = None
     scene_count: Optional[int] = None
     error: Optional[str] = None
     created_at: Optional[str] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+
+
+class JobRenameRequest(BaseModel):
+    display_name: str
 
 
 class SceneRow(BaseModel):
@@ -134,6 +142,10 @@ class KeywordRulesUpdateRequest(BaseModel):
     """class_name -> list of keywords/phrases (fuzzy-matched against OCR'd
     frame text). See app/ml/text_rules.py. Editable without retraining."""
     keyword_rules: Dict[str, List[str]]
+
+
+class ModelRenameRequest(BaseModel):
+    name: str
 
 
 # ── Training ─────────────────────────────────────────────────────────────

@@ -1,12 +1,15 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.schemas import KeywordRulesUpdateRequest, ModelOut, ModelRegisterRequest
+from app.schemas import KeywordRulesUpdateRequest, ModelOut, ModelRegisterRequest, ModelRenameRequest
+from app.services import gcs_service
 from app.services.firebase_service import get_current_user, get_db
 from app.utils import metrics_from_firestore, metrics_to_firestore
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/models", tags=["models"])
 
 
@@ -101,3 +104,47 @@ def activate_model(model_id: str, user: dict = Depends(get_current_user)):
 
     ref.update({"is_active": True})
     return _to_model_out(ref.get().to_dict())
+
+
+@router.patch("/{model_id}/rename", response_model=ModelOut)
+def rename_model(model_id: str, payload: ModelRenameRequest, user: dict = Depends(get_current_user)):
+    db = get_db()
+    ref = db.collection("models").document(model_id)
+    doc = ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty")
+
+    ref.update({"name": name})
+    return _to_model_out(ref.get().to_dict())
+
+
+@router.delete("/{model_id}")
+def delete_model(model_id: str, user: dict = Depends(get_current_user)):
+    """Removes the model from the registry AND its durable Cloud Storage
+    artifacts (the keras_model.h5 / text_model.joblib this is the only
+    remaining reference to). Deleting the currently-active model is allowed
+    — the frontend's confirmation prompt is expected to warn about that —
+    it just leaves no model active until another one is."""
+    db = get_db()
+    ref = db.collection("models").document(model_id)
+    doc = ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Model not found")
+    data = doc.to_dict()
+
+    for path in (data.get("model_storage_path"), data.get("text_model_storage_path")):
+        if not path:
+            continue
+        try:
+            gcs_service.delete_blob(path)
+        except Exception:
+            # Don't let a storage hiccup block removing the registry entry
+            # itself — worst case an orphaned blob sits in the bucket.
+            log.warning("Failed to delete model artifact %s for model %s", path, model_id, exc_info=True)
+
+    ref.delete()
+    return {"status": "deleted"}

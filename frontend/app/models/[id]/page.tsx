@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { api, ApiError } from "@/lib/api";
@@ -10,9 +11,11 @@ import { ocrExcludedNote } from "@/lib/trainingMetrics";
 import { Container, PageHeader } from "@/components/ui/Section";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button, buttonClasses } from "@/components/ui/Button";
+import { Input, Label } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MetricsReport } from "@/components/train/MetricsReport";
 
 function formatDate(iso: string | null): string {
@@ -21,9 +24,19 @@ function formatDate(iso: string | null): string {
 }
 
 function ModelDetailContent({ modelId }: { modelId: string }) {
+  const router = useRouter();
   const [model, setModel] = useState<ModelOut | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
+
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function load() {
     setError(null);
@@ -56,6 +69,45 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
     }
   }
 
+  function startRename() {
+    if (!model) return;
+    setRenaming(true);
+    setRenameValue(model.name);
+    setRenameError(null);
+  }
+
+  async function commitRename() {
+    const name = renameValue.trim();
+    if (!name) {
+      setRenameError("Name can't be empty.");
+      return;
+    }
+    setRenameBusy(true);
+    try {
+      await api.models.rename(modelId, name);
+      setRenaming(false);
+      await load();
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : "Failed to rename.");
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await api.models.remove(modelId);
+      // Same destination as the "Back to models" link above — this model no
+      // longer exists to have its own detail page.
+      router.push("/dashboard");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete model.");
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <AppShell section="dashboard" crumb="Models">
       <Container className="py-10">
@@ -78,7 +130,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
             title={model.name}
             description={`${model.labels.length} classes · created ${formatDate(model.created_at)}`}
             action={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {model.is_active ? (
                   <Badge tone="success">active</Badge>
                 ) : (
@@ -92,9 +144,40 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
                 >
                   Retrain with new settings
                 </Link>
+                <Button variant="outline" onClick={startRename}>
+                  Rename
+                </Button>
+                <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+                  Delete
+                </Button>
               </div>
             }
           />
+
+          {renaming && (
+            <Card className="mb-6 max-w-sm">
+              <Label htmlFor="model-rename">Model name</Label>
+              <Input
+                id="model-rename"
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+              />
+              {renameError && <p className="mt-1 text-sm text-danger">{renameError}</p>}
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" onClick={commitRename} loading={renameBusy}>
+                  Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setRenaming(false)} disabled={renameBusy}>
+                  Cancel
+                </Button>
+              </div>
+            </Card>
+          )}
 
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
@@ -179,6 +262,30 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
         </>
       )}
       </Container>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Delete this model?"
+        description={
+          model && (
+            <>
+              This permanently deletes <span className="font-medium text-text">{model.name}</span> and its saved
+              files. This can&apos;t be undone.
+              {model.is_active && (
+                <p className="mt-2 text-warning">
+                  This is your currently active model — new video jobs will have no default model until you activate
+                  another one.
+                </p>
+              )}
+              {deleteError && <p className="mt-2 text-danger">{deleteError}</p>}
+            </>
+          )
+        }
+        confirmLabel="Delete model"
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </AppShell>
   );
 }

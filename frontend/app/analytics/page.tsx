@@ -56,19 +56,6 @@ function formatSeconds(totalSeconds: number): string {
   return `${s}s`;
 }
 
-function PatternPill({ pattern }: { pattern: string[] }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 font-mono text-sm">
-      {pattern.map((step, i) => (
-        <span key={i} className="flex items-center gap-1.5">
-          <span className="rounded-md bg-neutral-100 px-2 py-1 text-text">{step}</span>
-          {i < pattern.length - 1 && <span className="text-neutral-400">→</span>}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function AnalyticsContent() {
   const [jobs, setJobs] = useState<JobOut[] | null>(null);
   const [jobsError, setJobsError] = useState<string | null>(null);
@@ -388,12 +375,12 @@ function AnalyticsContent() {
                   </div>
                 </Card>
 
-                <Card>
+                <Card className="lg:col-span-3">
                   <CardHeader title="Class distribution" description="Scene count per class." />
                   <BarChart data={classRows.map((r) => ({ label: r.label, value: r.count }))} />
                 </Card>
 
-                <Card>
+                <Card className="lg:col-span-3">
                   <CardHeader title="Time spent per class" description="Minutes of video attributed to each class." />
                   <BarChart
                     data={classRows.map((r) => ({ label: r.label, value: Math.round((r.totalSec / 60) * 10) / 10 }))}
@@ -485,27 +472,13 @@ function AnalyticsContent() {
                 {spmResults.length === 0 ? (
                   <p className="text-sm text-neutral-500">No patterns met the minimum support threshold.</p>
                 ) : (
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <HorizontalBarChart
-                      data={spmResults.map((r) => ({
-                        label: r.pattern.join(" → "),
-                        value: r.support_fraction,
-                        hint: `${(r.support_fraction * 100).toFixed(0)}%`,
-                      }))}
-                    />
-                    <ul className="space-y-3">
-                      {spmResults.map((r, i) => (
-                        <li key={i} className="rounded-lg border border-neutral-200 p-3">
-                          <div className="flex items-center justify-between gap-4">
-                            <PatternPill pattern={r.pattern} />
-                            <span className="shrink-0 font-mono text-sm text-neutral-500">
-                              {r.support} videos · {(r.support_fraction * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <HorizontalBarChart
+                    data={spmResults.map((r) => ({
+                      label: r.pattern.join(" → "),
+                      value: r.support_fraction,
+                      hint: `${(r.support_fraction * 100).toFixed(0)}%`,
+                    }))}
+                  />
                 )}
               </Card>
             )}

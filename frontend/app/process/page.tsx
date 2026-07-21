@@ -17,8 +17,9 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-type Tab = "new" | "history";
+type Tab = "new" | "logs" | "history";
 
 const ACTIVE_STATUSES = new Set(["queued", "processing"]);
 
@@ -37,6 +38,10 @@ interface PendingUpload {
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString();
+}
+
+function displayName(job: JobOut): string {
+  return job.display_name || job.original_filename;
 }
 
 async function triggerDownload(url: string, filename: string) {
@@ -70,6 +75,14 @@ function ProcessContent() {
 
   const [combineSelection, setCombineSelection] = useState<Set<string>>(new Set());
   const [combineBusy, setCombineBusy] = useState(false);
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<JobOut | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   async function loadJobs() {
     try {
@@ -198,6 +211,58 @@ function ProcessContent() {
     }
   }
 
+  function startRename(job: JobOut) {
+    setRenamingId(job.job_id);
+    setRenameValue(displayName(job));
+    setRenameError(null);
+  }
+
+  function cancelRename() {
+    setRenamingId(null);
+    setRenameError(null);
+  }
+
+  async function commitRename(jobId: string) {
+    const name = renameValue.trim();
+    if (!name) {
+      setRenameError("Name can't be empty.");
+      return;
+    }
+    setRenameBusy(true);
+    try {
+      await api.jobs.rename(jobId, name);
+      setRenamingId(null);
+      await loadJobs();
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : "Failed to rename.");
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
+  async function confirmDeleteJob() {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    try {
+      await api.jobs.remove(deleteTarget.job_id);
+      setCombineSelection((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteTarget.job_id);
+        return next;
+      });
+      if (expandedJobId === deleteTarget.job_id) {
+        setExpandedJobId(null);
+        setLogData(null);
+      }
+      setDeleteTarget(null);
+      await loadJobs();
+    } catch (err) {
+      setJobsError(err instanceof Error ? err.message : "Failed to delete log.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   const doneJobs = jobs?.filter((j) => j.status === "done") ?? [];
   const activeCount = jobs?.filter((j) => ACTIVE_STATUSES.has(j.status)).length ?? 0;
 
@@ -213,6 +278,7 @@ function ProcessContent() {
         <Tabs
           tabs={[
             { id: "new", label: "New job" },
+            { id: "logs", label: `Video logs${doneJobs.length > 0 ? ` (${doneJobs.length})` : ""}` },
             { id: "history", label: `Job history${activeCount > 0 ? ` (${activeCount} active)` : ""}` },
           ]}
           active={tab}
@@ -330,10 +396,10 @@ function ProcessContent() {
           </Card>
         )}
 
-        {tab === "history" && (
+        {tab === "logs" && (
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-text">Your jobs</h2>
+              <h2 className="text-lg font-semibold text-text">Video logs</h2>
               {combineSelection.size >= 2 && (
                 <Button size="sm" variant="outline" onClick={handleCombine} loading={combineBusy}>
                   Combine {combineSelection.size} logs (CSV)
@@ -348,56 +414,76 @@ function ProcessContent() {
             )}
 
             {jobs === null ? (
-              <Spinner label="Loading jobs..." />
-            ) : jobs.length === 0 ? (
-              <EmptyState title="No jobs yet" description="Upload a video in the New job tab to get started." />
+              <Spinner label="Loading logs..." />
+            ) : doneJobs.length === 0 ? (
+              <EmptyState
+                title="No logs yet"
+                description="Process a video in the New job tab — its log will show up here once it's done."
+              />
             ) : (
               <div className="space-y-3">
-                {jobs.map((job) => (
+                {doneJobs.map((job) => (
                   <Card key={job.job_id} className="p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        {job.status === "done" && (
-                          <input
-                            type="checkbox"
-                            checked={combineSelection.has(job.job_id)}
-                            onChange={() => toggleCombine(job.job_id)}
-                            aria-label={`Select ${job.original_filename} for combining`}
-                            className="h-4 w-4"
-                          />
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-text">{job.original_filename}</p>
-                          <p className="text-sm text-neutral-500">
-                            {formatDate(job.created_at)}
-                            {job.scene_count != null ? ` · ${job.scene_count} scenes` : ""}
-                          </p>
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={combineSelection.has(job.job_id)}
+                          onChange={() => toggleCombine(job.job_id)}
+                          aria-label={`Select ${displayName(job)} for combining`}
+                          className="h-4 w-4 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          {renamingId === job.job_id ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                autoFocus
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") commitRename(job.job_id);
+                                  if (e.key === "Escape") cancelRename();
+                                }}
+                                className="max-w-xs"
+                              />
+                              <Button size="sm" onClick={() => commitRename(job.job_id)} loading={renameBusy}>
+                                Save
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={cancelRename} disabled={renameBusy}>
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="truncate text-sm font-medium text-text">{displayName(job)}</p>
+                              <p className="text-sm text-neutral-500">
+                                {formatDate(job.created_at)}
+                                {job.scene_count != null ? ` · ${job.scene_count} scenes` : ""}
+                              </p>
+                            </>
+                          )}
+                          {renamingId === job.job_id && renameError && (
+                            <p className="mt-1 text-sm text-danger">{renameError}</p>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={job.status} />
-                        {job.status === "queued" && (
-                          <Button size="sm" variant="ghost" onClick={() => handleCancel(job.job_id)}>
-                            Cancel
+                      {renamingId !== job.job_id && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => toggleLogs(job.job_id)}>
+                            {expandedJobId === job.job_id ? "Hide log" : "View log"}
                           </Button>
-                        )}
-                        {job.status === "done" && (
-                          <>
-                            <Button size="sm" variant="ghost" onClick={() => toggleLogs(job.job_id)}>
-                              {expandedJobId === job.job_id ? "Hide log" : "View log"}
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleDownloadCsv(job)}>
-                              Download CSV
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadCsv(job)}>
+                            Download CSV
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => startRename(job)}>
+                            Rename
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setDeleteTarget(job)}>
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    {job.status === "failed" && job.error && (
-                      <Alert tone="danger" className="mt-3">
-                        {job.error}
-                      </Alert>
-                    )}
                     {expandedJobId === job.job_id && (
                       <div className="mt-4 border-t border-neutral-100 pt-4">
                         {logsLoading ? (
@@ -437,12 +523,76 @@ function ProcessContent() {
 
             {doneJobs.length > 0 && combineSelection.size === 0 && (
               <p className="mt-3 text-sm text-neutral-500">
-                Tip: select two or more completed jobs above to combine their logs into one CSV.
+                Tip: select two or more logs above to combine them into one CSV.
               </p>
             )}
           </div>
         )}
+
+        {tab === "history" && (
+          <div>
+            <h2 className="mb-4 text-lg font-semibold text-text">Job history</h2>
+
+            {jobsError && (
+              <Alert tone="danger" className="mb-4">
+                {jobsError}
+              </Alert>
+            )}
+
+            {jobs === null ? (
+              <Spinner label="Loading jobs..." />
+            ) : jobs.length === 0 ? (
+              <EmptyState title="No jobs yet" description="Upload a video in the New job tab to get started." />
+            ) : (
+              <div className="space-y-3">
+                {jobs.map((job) => (
+                  <Card key={job.job_id} className="p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-text">{displayName(job)}</p>
+                        <p className="text-sm text-neutral-500">
+                          {formatDate(job.created_at)}
+                          {job.scene_count != null ? ` · ${job.scene_count} scenes` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={job.status} />
+                        {job.status === "queued" && (
+                          <Button size="sm" variant="ghost" onClick={() => handleCancel(job.job_id)}>
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {job.status === "failed" && job.error && (
+                      <Alert tone="danger" className="mt-3">
+                        {job.error}
+                      </Alert>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Container>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete this video log?"
+        description={
+          deleteTarget && (
+            <>
+              This permanently deletes the log for <span className="font-medium text-text">{displayName(deleteTarget)}</span>.
+              This can&apos;t be undone.
+            </>
+          )
+        }
+        confirmLabel="Delete log"
+        busy={deleteBusy}
+        onConfirm={confirmDeleteJob}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </AppShell>
   );
 }
