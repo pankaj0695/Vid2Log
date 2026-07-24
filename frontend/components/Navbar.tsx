@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { buttonClasses } from "./ui/Button";
+import { ThemeToggleButton, ThemeToggleSegmented } from "./ThemeToggle";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -117,31 +118,43 @@ export function Navbar() {
                 )}
               </button>
               {menuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 mt-2 w-56 rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
-                >
-                  <div className="border-b border-neutral-100 px-3 py-2">
-                    <p className="truncate text-sm font-medium text-text">
-                      {profile?.display_name || "Account"}
-                    </p>
-                    <p className="truncate text-sm text-neutral-500">
-                      {profile?.email ?? firebaseUser.email}
-                    </p>
-                    {profile?.role === "admin" && (
-                      <span className="mt-1 inline-block rounded-full bg-secondary-tint px-2 py-0.5 text-sm font-medium text-secondary-hover">
-                        admin
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    role="menuitem"
-                    onClick={handleLogout}
-                    className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
+                <>
+                  {/* Click-outside catcher — same pattern as
+                   * Sidebar's AccountFooter, so this closes on an outside
+                   * click instead of only via the toggle button itself. */}
+                  <div
+                    className="fixed inset-0 z-[90]"
+                    onClick={() => setMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-[100] mt-2 w-56 rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
                   >
-                    Sign out
-                  </button>
-                </div>
+                    <div className="border-b border-neutral-100 px-3 py-2">
+                      <p className="truncate text-sm font-medium text-text">
+                        {profile?.display_name || "Account"}
+                      </p>
+                      <p className="truncate text-sm text-neutral-500">
+                        {profile?.email ?? firebaseUser.email}
+                      </p>
+                      {profile?.role === "admin" && (
+                        <span className="mt-1 inline-block rounded-full bg-secondary-tint px-2 py-0.5 text-sm font-medium text-secondary-hover">
+                          admin
+                        </span>
+                      )}
+                    </div>
+                    <ThemeToggleSegmented />
+                    <div className="my-1 border-t border-neutral-100" />
+                    <button
+                      role="menuitem"
+                      onClick={handleLogout}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           ) : (
@@ -158,6 +171,7 @@ export function Navbar() {
               >
                 Get started
               </Link>
+              <ThemeToggleButton />
             </div>
           )}
 
@@ -230,6 +244,7 @@ export function Navbar() {
           >
             Get started
           </Link>
+          <ThemeToggleButton />
         </div>
       )}
     </header>

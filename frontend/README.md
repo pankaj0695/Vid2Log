@@ -121,6 +121,28 @@ picker session plus the immediate downloads, then discarded.
 | `/analytics` | Signed in   | Run SPM (frequent patterns) and DSM (differential patterns)         |
 | `/admin`     | Admin only  | System stats, user list + role management, stale-video cleanup      |
 
+## SEO
+
+- `lib/site.ts` — single source of truth for `SITE_URL`/`SITE_NAME`/
+  `SITE_DESCRIPTION` and the shared `NOINDEX_METADATA` object. Set
+  `NEXT_PUBLIC_SITE_URL` to the real production URL once deployed (see
+  `.env.local.example`) — everything below depends on it being correct.
+- `app/layout.tsx` — full metadata (Open Graph, Twitter card, keywords,
+  icons, `metadataBase`) plus site-wide Organization JSON-LD.
+- `app/page.tsx` additionally carries its own `SoftwareApplication` JSON-LD.
+- `app/opengraph-image.tsx` — dynamically generated 1200×630 social-share
+  card (via `next/og`), used automatically for every route that doesn't
+  define its own.
+- `app/sitemap.ts` / `app/robots.ts` — the sitemap only lists `/`, `/login`,
+  `/signup` (the only actually-public routes with unique content).
+- Every signed-in route (`/dashboard`, `/train`, `/process`, `/analytics`,
+  `/admin`, `/models/[id]`) has its own `layout.tsx` purely to attach
+  `NOINDEX_METADATA` — those pages are Client Components (can't export
+  `metadata` themselves) and have nothing public to show a crawler anyway
+  (`ProtectedRoute` redirects a signed-out visitor to `/login`). `/login`
+  and `/signup` get their own `layout.tsx` too, but stay indexable with
+  page-specific titles/descriptions.
+
 ## Notes
 
 - Firestore is never touched directly from the browser — every read/write

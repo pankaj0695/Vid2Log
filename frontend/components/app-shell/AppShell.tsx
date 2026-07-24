@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Sidebar, type SectionId } from "./Sidebar";
 import { Topbar } from "./Topbar";
+
+const SIDEBAR_COLLAPSED_KEY = "vid2log-sidebar-collapsed";
 
 /** Shared visual chrome for every authenticated page: sidebar (section
  * switcher) + breadcrumb topbar, in one place instead of copy-pasted per
@@ -18,7 +21,13 @@ import { Topbar } from "./Topbar";
  * fetches, with no auth token yet available on a fresh page load) before
  * ProtectedRoute ever got a chance to hide anything. Wrapping the content
  * component from the outside means it doesn't mount — so its effects don't
- * run — until auth has actually resolved. */
+ * run — until auth has actually resolved.
+ *
+ * The "collapsed" (desktop sidebar hidden entirely) state lives HERE, not
+ * in Sidebar itself, because collapsing needs to be visible to Topbar too
+ * (it shows the reopen button at its own left edge when there's no sidebar
+ * to show it) — a sibling can't reach into another sibling's local state,
+ * so it has to live in their shared parent. */
 export function AppShell({
   section,
   crumb,
@@ -28,11 +37,28 @@ export function AppShell({
   crumb: string;
   children: React.ReactNode;
 }) {
+  // Lazy initializer (not an effect) reads the saved preference on first
+  // client render — this whole tree only ever mounts client-side (it sits
+  // behind ProtectedRoute's auth check, which never finishes during SSR),
+  // so there's no server/client mismatch to guard against here.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+  });
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  }
+
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <Sidebar active={section} />
+      <Sidebar active={section} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar crumb={crumb} />
+        <Topbar crumb={crumb} sidebarCollapsed={collapsed} onExpandSidebar={toggleCollapsed} />
         <main className="flex-1">{children}</main>
       </div>
     </div>

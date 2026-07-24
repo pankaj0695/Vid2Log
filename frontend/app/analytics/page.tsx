@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { api } from "@/lib/api";
-import type { DSMPattern, JobOut, LogOut, SPMPattern } from "@/lib/types";
+import { downloadCsv, downloadMultiSectionCsv } from "@/lib/csv";
+import { downloadOverviewPdf } from "@/lib/pdfReport";
+import type { DSMPattern, DSMTestType, JobOut, LogOut, SPMPattern, SPMSortBy } from "@/lib/types";
 import { Container, PageHeader } from "@/components/ui/Section";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -14,7 +16,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
-import { BarChart, DonutChart, DivergingBarChart, HorizontalBarChart, GanttTimeline } from "@/components/ui/charts";
+import { BarChart, DonutChart, HorizontalBarChart, GanttTimeline } from "@/components/ui/charts";
 
 type Tab = "overview" | "spm" | "dsm" | "timeline";
 
@@ -71,20 +73,39 @@ function AnalyticsContent() {
 
   // SPM state
   const [spmSelection, setSpmSelection] = useState<Set<string>>(new Set());
-  const [spmMinSupport, setSpmMinSupport] = useState(0.3);
+  const [spmMinSupport, setSpmMinSupport] = useState(0.4);
   const [spmTopK, setSpmTopK] = useState(10);
   const [spmResults, setSpmResults] = useState<SPMPattern[] | null>(null);
   const [spmLoading, setSpmLoading] = useState(false);
   const [spmError, setSpmError] = useState<string | null>(null);
+  // SPM Advanced options — defaults mirror backend/app/schemas.py::SPMRequest.
+  const [spmShowAdvanced, setSpmShowAdvanced] = useState(false);
+  const [spmSlidingWindowMin, setSpmSlidingWindowMin] = useState(1);
+  const [spmSlidingWindowMax, setSpmSlidingWindowMax] = useState(4);
+  const [spmMinGap, setSpmMinGap] = useState(0);
+  const [spmMaxGap, setSpmMaxGap] = useState<number | "">(12);
+  const [spmMinInstanceSupport, setSpmMinInstanceSupport] = useState(0);
+  const [spmSortBy, setSpmSortBy] = useState<SPMSortBy>("s_support");
 
   // DSM state
   const [groupA, setGroupA] = useState<Set<string>>(new Set());
   const [groupB, setGroupB] = useState<Set<string>>(new Set());
-  const [dsmMinSupport, setDsmMinSupport] = useState(0.2);
+  const [dsmMinSupport, setDsmMinSupport] = useState(0.4);
   const [dsmTopK, setDsmTopK] = useState(10);
   const [dsmResults, setDsmResults] = useState<DSMPattern[] | null>(null);
   const [dsmLoading, setDsmLoading] = useState(false);
   const [dsmError, setDsmError] = useState<string | null>(null);
+  // DSM Advanced options — the shared mining-engine fields mirror SPM's
+  // (see backend/app/schemas.py::DSMRequest); test_type/threshold_p_value
+  // are DSM-specific (statistical significance between the two groups).
+  const [dsmShowAdvanced, setDsmShowAdvanced] = useState(false);
+  const [dsmSlidingWindowMin, setDsmSlidingWindowMin] = useState(1);
+  const [dsmSlidingWindowMax, setDsmSlidingWindowMax] = useState(4);
+  const [dsmMinGap, setDsmMinGap] = useState(0);
+  const [dsmMaxGap, setDsmMaxGap] = useState<number | "">(12);
+  const [dsmMinInstanceSupport, setDsmMinInstanceSupport] = useState(0);
+  const [dsmTestType, setDsmTestType] = useState<DSMTestType>("ttest_ind");
+  const [dsmThresholdPValue, setDsmThresholdPValue] = useState(0.1);
 
   // Video timeline state
   const [timelineJobId, setTimelineJobId] = useState("");
@@ -176,6 +197,63 @@ function AnalyticsContent() {
       .sort((a, b) => b.totalSec - a.totalSec);
   }, [overviewResult]);
 
+  function downloadOverviewCsv() {
+    if (!overviewResult) return;
+    downloadMultiSectionCsv("analytics_overview_report.csv", [
+      {
+        title: "Summary",
+        headers: ["Videos analyzed", "Total scenes", "Total duration", "Avg. confidence"],
+        rows: [
+          [
+            overviewResult.videoCount,
+            overviewResult.totalScenes,
+            formatSeconds(overviewResult.totalDurationSec),
+            `${(overviewResult.avgConfidence * 100).toFixed(1)}%`,
+          ],
+        ],
+      },
+      {
+        title: "Per-class summary",
+        headers: ["Class", "Scenes", "Total time (s)", "Avg. scene length (s)", "Avg. confidence"],
+        rows: classRows.map((r) => [
+          r.label,
+          r.count,
+          r.totalSec.toFixed(1),
+          r.avgDurationSec.toFixed(1),
+          `${(r.avgConfidence * 100).toFixed(1)}%`,
+        ]),
+      },
+      {
+        title: "Scenes per video",
+        headers: ["Video", "Scenes"],
+        rows: overviewResult.perVideo.map((v) => [v.label, v.value]),
+      },
+      {
+        title: "Classification source",
+        headers: ["Source", "Count"],
+        rows: Object.entries(overviewResult.sourceCounts).map(([key, value]) => [SOURCE_LABELS[key] ?? key, value]),
+      },
+    ]);
+  }
+
+  function downloadOverviewPdfReport() {
+    if (!overviewResult) return;
+    downloadOverviewPdf({
+      generatedAt: new Date(),
+      videoCount: overviewResult.videoCount,
+      totalScenes: overviewResult.totalScenes,
+      totalDurationLabel: formatSeconds(overviewResult.totalDurationSec),
+      avgConfidencePct: `${(overviewResult.avgConfidence * 100).toFixed(1)}%`,
+      classRows,
+      perVideo: overviewResult.perVideo,
+      sourceCounts: Object.entries(overviewResult.sourceCounts).map(([key, value]) => ({
+        label: SOURCE_LABELS[key] ?? key,
+        value,
+      })),
+      formatSeconds,
+    });
+  }
+
   function toggleSpm(jobId: string) {
     setSpmSelection((prev) => {
       const next = new Set(prev);
@@ -212,6 +290,12 @@ function AnalyticsContent() {
         job_ids: Array.from(spmSelection),
         min_support: spmMinSupport,
         top_k: spmTopK,
+        sliding_window_min: spmSlidingWindowMin,
+        sliding_window_max: spmSlidingWindowMax,
+        min_gap: spmMinGap,
+        max_gap: spmMaxGap === "" ? null : spmMaxGap,
+        min_instance_support: spmMinInstanceSupport,
+        sort_by: spmSortBy,
       });
       setSpmResults(results);
     } catch (err) {
@@ -219,6 +303,25 @@ function AnalyticsContent() {
     } finally {
       setSpmLoading(false);
     }
+  }
+
+  // Matches the reference SPM tool's export format: Pattern uses "--->" as
+  // the step separator, column order is Pattern/I-Frequency/S-Frequency/
+  // I-Support (mean)/S-Support/I-Support (sd).
+  function downloadSpmCsv() {
+    if (!spmResults || spmResults.length === 0) return;
+    downloadCsv(
+      "spm_results.csv",
+      ["Pattern", "I-Frequency", "S-Frequency", "I-Support (mean)", "S-Support", "I-Support (sd)"],
+      spmResults.map((r) => [
+        r.pattern.join("--->"),
+        r.i_frequency,
+        r.support,
+        r.i_support_mean.toFixed(6),
+        r.support_fraction.toFixed(6),
+        r.i_support_sd.toFixed(6),
+      ])
+    );
   }
 
   async function runDsm() {
@@ -234,6 +337,13 @@ function AnalyticsContent() {
         group_b_job_ids: Array.from(groupB),
         min_support: dsmMinSupport,
         top_k: dsmTopK,
+        sliding_window_min: dsmSlidingWindowMin,
+        sliding_window_max: dsmSlidingWindowMax,
+        min_gap: dsmMinGap,
+        max_gap: dsmMaxGap === "" ? null : dsmMaxGap,
+        min_instance_support: dsmMinInstanceSupport,
+        test_type: dsmTestType,
+        threshold_p_value: dsmThresholdPValue,
       });
       setDsmResults(results);
     } catch (err) {
@@ -241,6 +351,23 @@ function AnalyticsContent() {
     } finally {
       setDsmLoading(false);
     }
+  }
+
+  // Matches the reference DSM tool's export format exactly, including its
+  // "ttest_value" column name regardless of which test was actually run.
+  function downloadDsmCsv() {
+    if (!dsmResults || dsmResults.length === 0) return;
+    downloadCsv(
+      "dsm_results.csv",
+      ["pattern", "ttest_value", "isupportleft_mean", "isupportright_mean", "Group"],
+      dsmResults.map((r) => [
+        r.pattern.join("--->"),
+        r.p_value,
+        r.isupport_left_mean === null ? "" : r.isupport_left_mean.toFixed(6),
+        r.isupport_right_mean === null ? "" : r.isupport_right_mean.toFixed(6),
+        r.group,
+      ])
+    );
   }
 
   async function loadTimeline(jobId: string) {
@@ -273,7 +400,7 @@ function AnalyticsContent() {
         <PageHeader
           eyebrow="Analytics"
           title="Pattern analysis"
-          description="See what your processed videos actually contain — class distribution, common workflows, what differs between groups, and one video at a time."
+          description="See what your processed videos actually contain - class distribution, common workflows, what differs between groups, and one video at a time."
         />
 
         <Tabs
@@ -337,6 +464,18 @@ function AnalyticsContent() {
 
             {overviewResult && (
               <>
+                <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-3">
+                  <p className="text-sm text-neutral-500">Download this report as a spreadsheet or a formatted PDF.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={downloadOverviewCsv}>
+                      Download CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={downloadOverviewPdfReport}>
+                      Download PDF
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-4">
                   <StatCard label="Videos analyzed" value={overviewResult.videoCount} />
                   <StatCard label="Total scenes" value={overviewResult.totalScenes} />
@@ -437,7 +576,7 @@ function AnalyticsContent() {
               <CardHeader title="Parameters" />
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="spm-support">Min support (fraction of videos)</Label>
+                  <Label htmlFor="spm-support">S Support Threshold (fraction of videos)</Label>
                   <Input
                     id="spm-support"
                     type="number"
@@ -459,6 +598,84 @@ function AnalyticsContent() {
                     onChange={(e) => setSpmTopK(Number(e.target.value))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="spm-sortby">Sort by</Label>
+                  <Select
+                    id="spm-sortby"
+                    value={spmSortBy}
+                    onChange={(e) => setSpmSortBy(e.target.value as SPMSortBy)}
+                  >
+                    <option value="s_support">S-Support</option>
+                    <option value="i_support">I-Support</option>
+                  </Select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSpmShowAdvanced((v) => !v)}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {spmShowAdvanced ? "− Hide advanced options" : "+ Advanced options"}
+                </button>
+
+                {spmShowAdvanced && (
+                  <div className="grid gap-4 border-t border-neutral-100 pt-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="spm-window-min">Sliding Window Min</Label>
+                      <Input
+                        id="spm-window-min"
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={spmSlidingWindowMin}
+                        onChange={(e) => setSpmSlidingWindowMin(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="spm-window-max">Sliding Window Max</Label>
+                      <Input
+                        id="spm-window-max"
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={spmSlidingWindowMax}
+                        onChange={(e) => setSpmSlidingWindowMax(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="spm-min-gap">Min Gap</Label>
+                      <Input
+                        id="spm-min-gap"
+                        type="number"
+                        min={0}
+                        value={spmMinGap}
+                        onChange={(e) => setSpmMinGap(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="spm-max-gap">Max Gap (blank = unlimited)</Label>
+                      <Input
+                        id="spm-max-gap"
+                        type="number"
+                        min={0}
+                        value={spmMaxGap}
+                        onChange={(e) => setSpmMaxGap(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="spm-i-support">I Support Threshold (min avg occurrences/video)</Label>
+                      <Input
+                        id="spm-i-support"
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={spmMinInstanceSupport}
+                        onChange={(e) => setSpmMinInstanceSupport(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <Button className="w-full" onClick={runSpm} loading={spmLoading}>
                   Run SPM
                 </Button>
@@ -468,17 +685,59 @@ function AnalyticsContent() {
 
             {spmResults && (
               <Card className="lg:col-span-3">
-                <CardHeader title={`Frequent patterns (${spmResults.length})`} />
+                <CardHeader
+                  title={`Frequent patterns (${spmResults.length})`}
+                  action={
+                    spmResults.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={downloadSpmCsv}>
+                        Download CSV
+                      </Button>
+                    )
+                  }
+                />
                 {spmResults.length === 0 ? (
                   <p className="text-sm text-neutral-500">No patterns met the minimum support threshold.</p>
                 ) : (
-                  <HorizontalBarChart
-                    data={spmResults.map((r) => ({
-                      label: r.pattern.join(" → "),
-                      value: r.support_fraction,
-                      hint: `${(r.support_fraction * 100).toFixed(0)}%`,
-                    }))}
-                  />
+                  <>
+                    <HorizontalBarChart
+                      data={spmResults.map((r) => ({
+                        label: r.pattern.join(" → "),
+                        value: spmSortBy === "i_support" ? r.i_support_mean : r.support_fraction,
+                        hint:
+                          spmSortBy === "i_support"
+                            ? r.i_support_mean.toFixed(2)
+                            : `${(r.support_fraction * 100).toFixed(0)}%`,
+                      }))}
+                    />
+                    <div className="mt-6 overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-neutral-200 text-neutral-500">
+                            <th className="py-2 pr-4 font-medium">Pattern</th>
+                            <th className="py-2 pr-4 font-medium">I-Frequency</th>
+                            <th className="py-2 pr-4 font-medium">S-Frequency</th>
+                            <th className="py-2 pr-4 font-medium">I-Support (mean)</th>
+                            <th className="py-2 pr-4 font-medium">S-Support</th>
+                            <th className="py-2 pr-4 font-medium">I-Support (sd)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {spmResults.map((r, i) => (
+                            <tr key={i} className="border-b border-neutral-100 last:border-0">
+                              <td className="max-w-xs break-words py-2 pr-4 font-mono text-xs">
+                                {r.pattern.join(" ---> ")}
+                              </td>
+                              <td className="py-2 pr-4">{r.i_frequency}</td>
+                              <td className="py-2 pr-4">{r.support}</td>
+                              <td className="py-2 pr-4">{r.i_support_mean.toFixed(2)}</td>
+                              <td className="py-2 pr-4">{r.support_fraction.toFixed(2)}</td>
+                              <td className="py-2 pr-4">{r.i_support_sd.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </Card>
             )}
@@ -529,7 +788,7 @@ function AnalyticsContent() {
               <CardHeader title="Parameters" />
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="dsm-support">Min support</Label>
+                  <Label htmlFor="dsm-support">S Support Threshold</Label>
                   <Input
                     id="dsm-support"
                     type="number"
@@ -551,6 +810,106 @@ function AnalyticsContent() {
                     onChange={(e) => setDsmTopK(Number(e.target.value))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="dsm-test-type">Test Type</Label>
+                  <Select
+                    id="dsm-test-type"
+                    value={dsmTestType}
+                    onChange={(e) => setDsmTestType(e.target.value as DSMTestType)}
+                  >
+                    <option value="ttest_ind">ttest_ind</option>
+                    <option value="poisson_means_test">poisson_means_test</option>
+                    <option value="mannwhitneyu">mannwhitneyu</option>
+                    <option value="bws_test">bws_test</option>
+                    <option value="ranksums">ranksums</option>
+                    <option value="brunnermunzel">brunnermunzel</option>
+                    <option value="mood">mood</option>
+                    <option value="ansari">ansari</option>
+                    <option value="cramervonmises_2samp">cramervonmises_2samp</option>
+                    <option value="epps_singleton_2samp">epps_singleton_2samp</option>
+                    <option value="ks_2samp">ks_2samp</option>
+                    <option value="kstest">kstest</option>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="dsm-p-threshold">Threshold P-value</Label>
+                  <Input
+                    id="dsm-p-threshold"
+                    type="number"
+                    min={0.001}
+                    max={1}
+                    step={0.01}
+                    value={dsmThresholdPValue}
+                    onChange={(e) => setDsmThresholdPValue(Number(e.target.value))}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDsmShowAdvanced((v) => !v)}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {dsmShowAdvanced ? "− Hide advanced options" : "+ Advanced options"}
+                </button>
+
+                {dsmShowAdvanced && (
+                  <div className="grid gap-4 border-t border-neutral-100 pt-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="dsm-window-min">Sliding Window Min</Label>
+                      <Input
+                        id="dsm-window-min"
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={dsmSlidingWindowMin}
+                        onChange={(e) => setDsmSlidingWindowMin(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dsm-window-max">Sliding Window Max</Label>
+                      <Input
+                        id="dsm-window-max"
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={dsmSlidingWindowMax}
+                        onChange={(e) => setDsmSlidingWindowMax(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dsm-min-gap">Min Gap</Label>
+                      <Input
+                        id="dsm-min-gap"
+                        type="number"
+                        min={0}
+                        value={dsmMinGap}
+                        onChange={(e) => setDsmMinGap(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dsm-max-gap">Max Gap (blank = unlimited)</Label>
+                      <Input
+                        id="dsm-max-gap"
+                        type="number"
+                        min={0}
+                        value={dsmMaxGap}
+                        onChange={(e) => setDsmMaxGap(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="dsm-i-support">I Support Threshold (min avg occurrences/video)</Label>
+                      <Input
+                        id="dsm-i-support"
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={dsmMinInstanceSupport}
+                        onChange={(e) => setDsmMinInstanceSupport(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <Button className="w-full" onClick={runDsm} loading={dsmLoading}>
                   Run DSM
                 </Button>
@@ -562,12 +921,44 @@ function AnalyticsContent() {
               <Card className="lg:col-span-3">
                 <CardHeader
                   title={`Differential patterns (${dsmResults.length})`}
-                  description="Positive diff = more typical of Group A. Negative diff = more typical of Group B."
+                  description={`Patterns whose per-video occurrence rate differs significantly (p ≤ ${dsmThresholdPValue}) between Group A ("left") and Group B ("right"), via ${dsmTestType}.`}
+                  action={
+                    dsmResults.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={downloadDsmCsv}>
+                        Download CSV
+                      </Button>
+                    )
+                  }
                 />
                 {dsmResults.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No differing patterns found at this support threshold.</p>
+                  <p className="text-sm text-neutral-500">No significantly differing patterns found at this threshold.</p>
                 ) : (
-                  <DivergingBarChart data={dsmResults.map((r) => ({ label: r.pattern.join(" → "), diff: r.diff }))} />
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-neutral-200 text-neutral-500">
+                          <th className="py-2 pr-4 font-medium">Pattern</th>
+                          <th className="py-2 pr-4 font-medium">p-value</th>
+                          <th className="py-2 pr-4 font-medium">I-Support left mean</th>
+                          <th className="py-2 pr-4 font-medium">I-Support right mean</th>
+                          <th className="py-2 pr-4 font-medium">Group</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dsmResults.map((r, i) => (
+                          <tr key={i} className="border-b border-neutral-100 last:border-0">
+                            <td className="max-w-xs break-words py-2 pr-4 font-mono text-xs">
+                              {r.pattern.join(" ---> ")}
+                            </td>
+                            <td className="py-2 pr-4">{r.p_value.toExponential(2)}</td>
+                            <td className="py-2 pr-4">{r.isupport_left_mean === null ? "—" : r.isupport_left_mean.toFixed(2)}</td>
+                            <td className="py-2 pr-4">{r.isupport_right_mean === null ? "—" : r.isupport_right_mean.toFixed(2)}</td>
+                            <td className="py-2 pr-4 capitalize">{r.group}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </Card>
             )}
@@ -601,6 +992,7 @@ function AnalyticsContent() {
                 <GanttTimeline
                   segments={timelineSegments}
                   totalSeconds={Math.max(...timelineSegments.map((s) => s.endSec), 1)}
+                  height={80}
                 />
               </div>
             )}

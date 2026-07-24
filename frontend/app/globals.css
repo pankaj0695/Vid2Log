@@ -1,19 +1,32 @@
 @import "tailwindcss";
 
-/* ── Design tokens (dithered design system — dark) ────────────────────────
-   Dark-mode-only palette: near-black navy background, teal as the single
-   brand accent, a cooler blue reserved for rare secondary use (e.g. the
-   admin badge), thin low-opacity borders instead of shadows for depth.
-   `--color-bg` (page) and `--color-surface` (card/panel) are deliberately
-   two different steps so panels read as "elevated" against the page,
-   matching the reference screens. `--color-ink` is a near-black used as
-   TEXT on top of bright solid fills (primary/secondary/danger buttons) —
-   those accent colors are all light/high-luminance, so white text on them
-   would fail contrast; dark ink text is what the reference actually uses
-   on its teal buttons. Typography scale 14/16/18/24/32/40. Spacing scale
-   4/8/12/16/24/32 already matches Tailwind's default spacing scale
-   (1=4px,2=8px,3=12px,4=16px,6=24px,8=32px), so components should stick to
-   those steps rather than introducing others. */
+/* ── Design tokens (dithered design system — dark + light) ────────────────
+   Dark is the original/default palette: near-black navy background, teal as
+   the single brand accent, a cooler blue reserved for rare secondary use
+   (e.g. the admin badge), thin low-opacity borders instead of shadows for
+   depth. `--color-bg` (page) and `--color-surface` (card/panel) are
+   deliberately two different steps so panels read as "elevated" against the
+   page, matching the reference screens. `--color-ink` is a near-black used
+   as TEXT on top of bright solid fills (primary/secondary/danger buttons) —
+   those accent colors are all light/high-luminance in dark mode, so white
+   text on them would fail contrast; dark ink text is what the reference
+   actually uses on its teal buttons. Typography scale 14/16/18/24/32/40.
+   Spacing scale 4/8/12/16/24/32 already matches Tailwind's default spacing
+   scale (1=4px,2=8px,3=12px,4=16px,6=24px,8=32px), so components should
+   stick to those steps rather than introducing others.
+
+   Light mode (`[data-theme="light"]`, applied to <html> by ThemeProvider /
+   lib/theme-provider.tsx — see lib/site.ts's sibling for how it's wired)
+   deepens the accent colors instead of reusing the same bright dark-mode
+   hues: a bright #2dd4bf teal is a fine BACKGROUND fill on near-black but
+   fails contrast as text/icon color on a light page, and as a BUTTON fill
+   it needs light/white ink text instead of dark ink to stay readable. So
+   `--color-ink` itself flips between the two themes (near-black in dark
+   mode, near-white in light mode) rather than every component having to
+   know which theme is active. Every component in this codebase reads only
+   these semantic tokens (bg-surface, text-neutral-500, etc.), never a raw
+   hex or Tailwind's built-in gray scale, so this file is the ONLY place
+   that needs to know both palettes exist. */
 
 :root {
   color-scheme: dark;
@@ -51,6 +64,44 @@
   --color-neutral-700: #c1cedb;
   --color-neutral-800: #dde5eb;
   --color-neutral-900: #f3f7fa;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef2f6;
+  --color-text: #0f172a;
+  --color-ink: #ffffff;
+
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-primary-tint: #ecfdf5;
+
+  --color-secondary: #0284c7;
+  --color-secondary-hover: #0369a1;
+  --color-secondary-tint: #eff8ff;
+
+  --color-success: #059669;
+  --color-success-tint: #ecfdf5;
+
+  --color-warning: #d97706;
+  --color-warning-tint: #fffbeb;
+
+  --color-danger: #dc2626;
+  --color-danger-tint: #fef2f2;
+
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #eef2f6;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
 }
 
 @theme inline {
@@ -117,6 +168,20 @@ body {
   background-size: 22px 22px;
   color: var(--color-text);
   font-family: var(--font-sans);
+}
+
+/* Smooths the light/dark toggle — background/border/text colors are all
+   CSS variables that change value the instant `data-theme` flips, so
+   without this every surface would hard-cut instantly instead of fading.
+   Scoped to `no-preference` (rather than relying on the prefers-reduced-
+   motion rule further down to cancel it out) so a reduced-motion user never
+   gets this transition in the first place, full stop. Short duration and a
+   narrow property list to avoid jank on elements that already animate other
+   properties (e.g. the hero preview). */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-transitioning * {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, fill 0.25s ease !important;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {

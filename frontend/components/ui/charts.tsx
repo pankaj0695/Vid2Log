@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 /**
  * Small, dependency-free SVG chart primitives for the dark "dithered" theme.
  * No charting library — everything here is a plain <svg> sized by its
@@ -272,30 +274,99 @@ export function DonutChart({
 
 /* ── Gantt-style scene timeline (one video's scenes over time) ───────────── */
 
+function formatClock(totalSeconds: number): string {
+  const t = Math.max(0, Math.round(totalSeconds));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = t % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function formatDuration(seconds: number): string {
+  const t = Math.max(0, Math.round(seconds));
+  if (t < 60) return `${t}s`;
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+
 export function GanttTimeline({
   segments,
   totalSeconds,
+  height = 64,
+  tickCount = 8,
 }: {
   segments: { label: string; startSec: number; endSec: number; color?: string }[];
   totalSeconds: number;
+  /** Bar height in px — defaults taller than the old 32px timeline so
+   * individual scenes (and their hover targets) are easier to make out. */
+  height?: number;
+  /** How many evenly-spaced time labels to show on the axis below the bar. */
+  tickCount?: number;
 }) {
+  const [hovered, setHovered] = useState<number | null>(null);
   const classNames = Array.from(new Set(segments.map((s) => s.label)));
   const colorFor = (label: string) => segments.find((s) => s.label === label)?.color ?? paletteColor(classNames.indexOf(label));
 
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (totalSeconds * i) / tickCount);
+  const active = hovered !== null ? segments[hovered] : null;
+  const activeMidPct = active ? (((active.startSec + active.endSec) / 2) / totalSeconds) * 100 : 0;
+  // Clamp so the tooltip's centering transform never pushes it past the
+  // container edges for segments right at the very start/end of the video.
+  const tooltipLeftPct = Math.min(94, Math.max(6, activeMidPct));
+
   return (
     <div>
-      <div className="flex h-8 w-full overflow-hidden rounded-lg border border-neutral-200">
-        {segments.map((s, i) => {
-          const widthPct = ((s.endSec - s.startSec) / totalSeconds) * 100;
-          return (
-            <div
+      <div className="relative">
+        {active && (
+          <div
+            className="pointer-events-none absolute bottom-full z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-neutral-200 bg-surface px-3 py-2 text-xs shadow-lg"
+            style={{ left: `${tooltipLeftPct}%` }}
+          >
+            <div className="flex items-center gap-1.5 font-medium text-text">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colorFor(active.label) }} />
+              {active.label}
+            </div>
+            <div className="mt-0.5 font-mono text-neutral-500">
+              {formatClock(active.startSec)} – {formatClock(active.endSec)} · {formatDuration(active.endSec - active.startSec)}
+            </div>
+          </div>
+        )}
+        <div
+          className="flex w-full overflow-hidden rounded-lg border border-neutral-200"
+          style={{ height }}
+        >
+          {segments.map((s, i) => {
+            const widthPct = ((s.endSec - s.startSec) / totalSeconds) * 100;
+            return (
+              <div
+                key={i}
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
+                style={{
+                  width: `${Math.max(0.3, widthPct)}%`,
+                  backgroundColor: colorFor(s.label),
+                  filter: hovered !== null && hovered !== i ? "brightness(0.55)" : "brightness(1)",
+                }}
+                className="h-full cursor-pointer border-r border-bg/40 transition-[filter] last:border-r-0"
+              />
+            );
+          })}
+        </div>
+        {/* Time axis */}
+        <div className="relative mt-1.5 h-4 text-xs text-neutral-500">
+          {ticks.map((t, i) => (
+            <span
               key={i}
-              style={{ width: `${Math.max(0.3, widthPct)}%`, backgroundColor: colorFor(s.label) }}
-              title={`${s.label} · ${s.startSec.toFixed(0)}s–${s.endSec.toFixed(0)}s`}
-              className="h-full border-r border-bg/40 last:border-r-0"
-            />
-          );
-        })}
+              className="absolute -translate-x-1/2 font-mono first:translate-x-0 last:-translate-x-full"
+              style={{ left: `${(t / totalSeconds) * 100}%` }}
+            >
+              {formatClock(t)}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-500">
         {classNames.map((label) => (

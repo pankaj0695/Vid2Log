@@ -51,6 +51,12 @@ pandas
 scikit-learn
 joblib
 
+# Two-sample statistical significance tests for Differential Sequence Mining
+# (app/routers/analytics.py's /dsm endpoint) — already a transitive
+# dependency of scikit-learn, listed explicitly since it's now imported
+# directly.
+scipy
+
 # Sequential / Differential Pattern Mining: hand-rolled in
 # app/services/sequence_mining.py — no external dependency (the `prefixspan`
 # PyPI package pulls in `extratools`, which hard-pins an ancient Pillow

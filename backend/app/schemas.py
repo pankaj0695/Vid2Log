@@ -224,25 +224,54 @@ class TrainJobOut(BaseModel):
 
 class SPMRequest(BaseModel):
     job_ids: List[str]
-    min_support: float = 0.3  # fraction of sequences a pattern must appear in
+    min_support: float = 0.4  # "S Support Threshold" — fraction of sequences a pattern must appear in
     top_k: int = 10
+    # Advanced options (all optional — defaults reproduce plain unconstrained
+    # PrefixSpan). See sequence_mining.py's module docstring for the
+    # underlying algorithm and terminology.
+    sliding_window_min: int = Field(default=1, ge=1, le=20)  # shortest pattern length considered
+    sliding_window_max: int = Field(default=4, ge=1, le=20)  # longest pattern length considered (also hard-capped server-side, see MAX_PATTERN_LEN)
+    min_gap: int = Field(default=0, ge=0)  # min # of other events allowed between consecutive pattern items
+    max_gap: Optional[int] = Field(default=None, ge=0)  # max # of other events allowed; None = unlimited
+    min_instance_support: float = Field(default=0.0, ge=0)  # "I Support Threshold" — min mean instances/sequence
+    sort_by: str = "s_support"  # "s_support" | "i_support"
 
 
 class SPMPattern(BaseModel):
     pattern: List[str]
-    support: int
-    support_fraction: float
+    support: int  # S-Frequency: # of sequences containing the pattern at least once
+    support_fraction: float  # S-Support: support / total sequences
+    i_frequency: int = 0  # total non-overlapping occurrences across ALL sequences
+    i_support_mean: float = 0.0  # i_frequency / total sequences (sequences with 0 occurrences included)
+    i_support_sd: float = 0.0  # population stdev of per-sequence instance counts
 
 
 class DSMRequest(BaseModel):
     group_a_job_ids: List[str]
     group_b_job_ids: List[str]
-    min_support: float = 0.2
+    min_support: float = 0.4  # "S Support Threshold" — same mining engine/options as SPM
     top_k: int = 10
+    # Same "Advanced options" as SPMRequest — DSM mines each group with the
+    # identical gap/window-constrained engine before comparing them.
+    sliding_window_min: int = Field(default=1, ge=1, le=20)
+    sliding_window_max: int = Field(default=4, ge=1, le=20)
+    min_gap: int = Field(default=0, ge=0)
+    max_gap: Optional[int] = Field(default=None, ge=0)
+    min_instance_support: float = Field(default=0.0, ge=0)
+    # DSM-specific: which scipy.stats two-independent-samples test to run,
+    # comparing a pattern's per-video I-support (instance count) between the
+    # two groups, and the significance cutoff to filter on. See
+    # routers/analytics.py::TEST_TYPES for the full allowed set.
+    test_type: str = "ttest_ind"
+    threshold_p_value: float = Field(default=0.1, gt=0, le=1)
 
 
 class DSMPattern(BaseModel):
     pattern: List[str]
-    support_a: float
-    support_b: float
-    diff: float  # support_a - support_b; positive => more typical of group A
+    # Named `p_value` here; exported as `ttest_value` in the CSV to match
+    # the reference tool's column name regardless of which test was
+    # actually selected (a naming quirk of that tool, kept for compatibility).
+    p_value: float
+    isupport_left_mean: Optional[float] = None  # populated only when group == "left"
+    isupport_right_mean: Optional[float] = None  # populated only when group == "right"
+    group: str  # "left" (Group A) | "right" (Group B) — which group this pattern is characteristic of

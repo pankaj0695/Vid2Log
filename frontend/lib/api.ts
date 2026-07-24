@@ -7,10 +7,12 @@ import { auth } from "./firebase";
 import type {
   AdminStats,
   DSMPattern,
+  DSMTestType,
   JobOut,
   LogOut,
   ModelOut,
   SPMPattern,
+  SPMSortBy,
   SplitRatios,
   TrainingImageRef,
   TrainJobOut,
@@ -158,13 +160,29 @@ export const api = {
   },
 
   analytics: {
-    spm: (payload: { job_ids: string[]; min_support?: number; top_k?: number }) =>
-      request<SPMPattern[]>("/analytics/spm", { method: "POST", body: JSON.stringify(payload) }),
+    spm: (payload: {
+      job_ids: string[];
+      min_support?: number;
+      top_k?: number;
+      sliding_window_min?: number;
+      sliding_window_max?: number;
+      min_gap?: number;
+      max_gap?: number | null;
+      min_instance_support?: number;
+      sort_by?: SPMSortBy;
+    }) => request<SPMPattern[]>("/analytics/spm", { method: "POST", body: JSON.stringify(payload) }),
     dsm: (payload: {
       group_a_job_ids: string[];
       group_b_job_ids: string[];
       min_support?: number;
       top_k?: number;
+      sliding_window_min?: number;
+      sliding_window_max?: number;
+      min_gap?: number;
+      max_gap?: number | null;
+      min_instance_support?: number;
+      test_type?: DSMTestType;
+      threshold_p_value?: number;
     }) => request<DSMPattern[]>("/analytics/dsm", { method: "POST", body: JSON.stringify(payload) }),
   },
 

@@ -5,12 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { ThemeToggleSegmented } from "@/components/ThemeToggle";
 import {
   IconGrid,
   IconSliders,
   IconFilm,
   IconChartBar,
   IconShield,
+  IconSidebarToggle,
 } from "./icons";
 
 export type SectionId =
@@ -149,8 +151,10 @@ function AccountFooter({ onNavigate }: { onNavigate?: () => void }) {
             />
             <div
               role="menu"
-              className="absolute top-0 left-full z-[100] ml-2 w-44 rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
+              className="absolute bottom-full left-0 z-[100] mb-2 w-full rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
             >
+              <ThemeToggleSegmented />
+              <div className="my-1 border-t border-neutral-100" />
               <button
                 role="menuitem"
                 onClick={handleLogout}
@@ -170,7 +174,17 @@ function AccountFooter({ onNavigate }: { onNavigate?: () => void }) {
  * -over drawer on mobile. This is the app-wide section switcher — each
  * section's own sub-views live in an in-page tab bar (see Tabs.tsx), not
  * here, so the sidebar itself never has to change shape between pages. */
-export function Sidebar({ active }: { active: SectionId }) {
+export function Sidebar({
+  active,
+  collapsed,
+  onToggleCollapsed,
+}: {
+  active: SectionId;
+  /** Desktop-only — collapsing on mobile isn't a thing here, the mobile
+   * top strip + drawer below already covers hide/show. */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -241,21 +255,36 @@ export function Sidebar({ active }: { active: SectionId }) {
        * content column scrolls, instead of scrolling away with the page.
        * Overflow scrolling lives on the inner nav wrapper only, NOT this
        * outer <aside> — putting overflow-y-auto on the aside itself clips
-       * anything that overflows its box, including the account popup below,
-       * which deliberately renders outside the sidebar's right edge. */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-surface md:flex">
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-2 px-5 py-5 font-display text-lg font-bold text-text"
-        >
-          <LogoMark />
-          vid2log
-        </Link>
-        <div className="flex-1 overflow-y-auto">
-          <NavList active={active} />
-        </div>
-        <AccountFooter />
-      </aside>
+       * anything that overflows its box, including the account popup above
+       * it (see AccountFooter — it opens upward, not to the side).
+       * When collapsed, this renders NOTHING — no logo, no reserved width —
+       * the content column expands to fill the space; Topbar shows the
+       * reopen button instead, since there's nothing left here to show it
+       * on. */}
+      {!collapsed && (
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-surface md:flex">
+          <div className="flex items-center justify-between px-5 py-5">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 font-display text-lg font-bold text-text"
+            >
+              <LogoMark />
+              vid2log
+            </Link>
+            <button
+              onClick={onToggleCollapsed}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-text"
+              aria-label="Close sidebar"
+            >
+              <IconSidebarToggle />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <NavList active={active} />
+          </div>
+          <AccountFooter />
+        </aside>
+      )}
     </>
   );
 }

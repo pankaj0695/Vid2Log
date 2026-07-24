@@ -65,3 +65,16 @@ export function IconChevronDown({ className }: IconProps) {
     </svg>
   );
 }
+
+// Classic "toggle sidebar" glyph (a panel with a divider, same icon used
+// regardless of open/closed state — VSCode/Notion/Linear all use one
+// consistent icon here rather than swapping arrows, since the aria-label
+// already communicates the action).
+export function IconSidebarToggle({ className }: IconProps) {
+  return (
+    <svg {...common} className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}

@@ -132,15 +132,35 @@ export interface SplitRatios {
 
 export interface SPMPattern {
   pattern: string[];
-  support: number;
-  support_fraction: number;
+  support: number; // S-Frequency
+  support_fraction: number; // S-Support
+  i_frequency: number;
+  i_support_mean: number;
+  i_support_sd: number;
 }
+
+export type SPMSortBy = "s_support" | "i_support";
+
+export type DSMTestType =
+  | "ttest_ind"
+  | "poisson_means_test"
+  | "mannwhitneyu"
+  | "bws_test"
+  | "ranksums"
+  | "brunnermunzel"
+  | "mood"
+  | "ansari"
+  | "cramervonmises_2samp"
+  | "epps_singleton_2samp"
+  | "ks_2samp"
+  | "kstest";
 
 export interface DSMPattern {
   pattern: string[];
-  support_a: number;
-  support_b: number;
-  diff: number;
+  p_value: number;
+  isupport_left_mean: number | null;
+  isupport_right_mean: number | null;
+  group: "left" | "right";
 }
 
 export interface AdminStats {
