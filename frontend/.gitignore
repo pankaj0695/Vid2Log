@@ -18,6 +18,11 @@
 /.next-*/
 /out/
 
+# stray build-verification output — see note in project history; the sandbox
+# used to run checks can't always delete its own scratch build dirs (FUSE
+# permission errors), so this is a safety net until it's deleted by hand
+/tmp/
+
 # production
 /build
 

@@ -6,7 +6,14 @@ import { AppShell } from "@/components/app-shell/AppShell";
 import { api } from "@/lib/api";
 import { downloadCsv, downloadMultiSectionCsv } from "@/lib/csv";
 import { downloadOverviewPdf } from "@/lib/pdfReport";
-import type { DSMPattern, DSMTestType, JobOut, LogOut, SPMPattern, SPMSortBy } from "@/lib/types";
+import type {
+  DSMPattern,
+  DSMTestType,
+  JobOut,
+  LogOut,
+  SPMPattern,
+  SPMSortBy,
+} from "@/lib/types";
 import { Container, PageHeader } from "@/components/ui/Section";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -16,7 +23,13 @@ import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
-import { BarChart, DonutChart, HorizontalBarChart, GanttTimeline } from "@/components/ui/charts";
+import {
+  BarChart,
+  DonutChart,
+  HorizontalBarChart,
+  GanttTimeline,
+} from "@/components/ui/charts";
+import { JobSelectList } from "@/components/analytics/JobSelectList";
 
 type Tab = "overview" | "spm" | "dsm" | "timeline";
 
@@ -66,10 +79,14 @@ function AnalyticsContent() {
   // Overview state — descriptive stats computed on demand across whichever
   // videos the researcher picks, not silently over "recent" ones, so the
   // numbers always match a set of videos they consciously chose.
-  const [overviewSelection, setOverviewSelection] = useState<Set<string>>(new Set());
+  const [overviewSelection, setOverviewSelection] = useState<Set<string>>(
+    new Set(),
+  );
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
-  const [overviewResult, setOverviewResult] = useState<OverviewResult | null>(null);
+  const [overviewResult, setOverviewResult] = useState<OverviewResult | null>(
+    null,
+  );
 
   // SPM state
   const [spmSelection, setSpmSelection] = useState<Set<string>>(new Set());
@@ -107,9 +124,13 @@ function AnalyticsContent() {
   const [dsmTestType, setDsmTestType] = useState<DSMTestType>("ttest_ind");
   const [dsmThresholdPValue, setDsmThresholdPValue] = useState(0.1);
 
-  // Video timeline state
-  const [timelineJobId, setTimelineJobId] = useState("");
-  const [timelineLog, setTimelineLog] = useState<LogOut | null>(null);
+  // Video timeline state — multi-select so several videos' timelines can be
+  // compared at once, stacked vertically (see JobSelectList for the
+  // shift-click range-select mechanics shared with the other three tabs).
+  const [timelineSelection, setTimelineSelection] = useState<Set<string>>(
+    new Set(),
+  );
+  const [timelineLogs, setTimelineLogs] = useState<LogOut[] | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
@@ -117,19 +138,14 @@ function AnalyticsContent() {
     api.jobs
       .list(100)
       .then((list) => setJobs(list.filter((j) => j.status === "done")))
-      .catch((err) => setJobsError(err instanceof Error ? err.message : "Failed to load jobs."));
+      .catch((err) =>
+        setJobsError(
+          err instanceof Error ? err.message : "Failed to load jobs.",
+        ),
+      );
   }, []);
 
   const doneJobs = useMemo(() => jobs ?? [], [jobs]);
-
-  function toggleOverview(jobId: string) {
-    setOverviewSelection((prev) => {
-      const next = new Set(prev);
-      if (next.has(jobId)) next.delete(jobId);
-      else next.add(jobId);
-      return next;
-    });
-  }
 
   async function runOverview() {
     setOverviewError(null);
@@ -139,8 +155,12 @@ function AnalyticsContent() {
     }
     setOverviewLoading(true);
     try {
-      const selectedJobs = doneJobs.filter((j) => overviewSelection.has(j.job_id));
-      const logs = await Promise.all(selectedJobs.map((j) => api.logs.get(j.job_id)));
+      const selectedJobs = doneJobs.filter((j) =>
+        overviewSelection.has(j.job_id),
+      );
+      const logs = await Promise.all(
+        selectedJobs.map((j) => api.logs.get(j.job_id)),
+      );
 
       const classAgg: Record<string, ClassAgg> = {};
       const sourceCounts: Record<string, number> = {};
@@ -150,10 +170,17 @@ function AnalyticsContent() {
       let confSum = 0;
 
       logs.forEach((log, i) => {
-        perVideo.push({ label: selectedJobs[i].original_filename, value: log.scenes.length });
+        perVideo.push({
+          label: selectedJobs[i].original_filename,
+          value: log.scenes.length,
+        });
         for (const scene of log.scenes) {
           const sec = parseHms(scene.duration);
-          const agg = classAgg[scene.class] ?? { count: 0, totalSec: 0, confSum: 0 };
+          const agg = classAgg[scene.class] ?? {
+            count: 0,
+            totalSec: 0,
+            confSum: 0,
+          };
           agg.count += 1;
           agg.totalSec += sec;
           agg.confSum += scene.confidence;
@@ -178,7 +205,9 @@ function AnalyticsContent() {
         perVideo,
       });
     } catch (err) {
-      setOverviewError(err instanceof Error ? err.message : "Failed to aggregate scene logs.");
+      setOverviewError(
+        err instanceof Error ? err.message : "Failed to aggregate scene logs.",
+      );
     } finally {
       setOverviewLoading(false);
     }
@@ -202,7 +231,12 @@ function AnalyticsContent() {
     downloadMultiSectionCsv("analytics_overview_report.csv", [
       {
         title: "Summary",
-        headers: ["Videos analyzed", "Total scenes", "Total duration", "Avg. confidence"],
+        headers: [
+          "Videos analyzed",
+          "Total scenes",
+          "Total duration",
+          "Avg. confidence",
+        ],
         rows: [
           [
             overviewResult.videoCount,
@@ -214,7 +248,13 @@ function AnalyticsContent() {
       },
       {
         title: "Per-class summary",
-        headers: ["Class", "Scenes", "Total time (s)", "Avg. scene length (s)", "Avg. confidence"],
+        headers: [
+          "Class",
+          "Scenes",
+          "Total time (s)",
+          "Avg. scene length (s)",
+          "Avg. confidence",
+        ],
         rows: classRows.map((r) => [
           r.label,
           r.count,
@@ -231,7 +271,9 @@ function AnalyticsContent() {
       {
         title: "Classification source",
         headers: ["Source", "Count"],
-        rows: Object.entries(overviewResult.sourceCounts).map(([key, value]) => [SOURCE_LABELS[key] ?? key, value]),
+        rows: Object.entries(overviewResult.sourceCounts).map(
+          ([key, value]) => [SOURCE_LABELS[key] ?? key, value],
+        ),
       },
     ]);
   }
@@ -246,35 +288,37 @@ function AnalyticsContent() {
       avgConfidencePct: `${(overviewResult.avgConfidence * 100).toFixed(1)}%`,
       classRows,
       perVideo: overviewResult.perVideo,
-      sourceCounts: Object.entries(overviewResult.sourceCounts).map(([key, value]) => ({
-        label: SOURCE_LABELS[key] ?? key,
-        value,
-      })),
+      sourceCounts: Object.entries(overviewResult.sourceCounts).map(
+        ([key, value]) => ({
+          label: SOURCE_LABELS[key] ?? key,
+          value,
+        }),
+      ),
       formatSeconds,
     });
   }
 
-  function toggleSpm(jobId: string) {
-    setSpmSelection((prev) => {
-      const next = new Set(prev);
-      if (next.has(jobId)) next.delete(jobId);
-      else next.add(jobId);
-      return next;
+  // DSM's two lists are mutually exclusive — a video picked for Group A
+  // can't also be in Group B. Since JobSelectList's onChange hands back a
+  // whole replacement set (a shift-click range can touch many rows at
+  // once, not just one), the exclusion has to be enforced by stripping the
+  // newly-selected ids out of the *other* group here, rather than the old
+  // single-id setGroup() toggle this replaced.
+  function handleGroupAChange(next: Set<string>) {
+    setGroupA(next);
+    setGroupB((prev) => {
+      const cleaned = new Set(prev);
+      next.forEach((id) => cleaned.delete(id));
+      return cleaned;
     });
   }
 
-  function setGroup(jobId: string, group: "a" | "b" | null) {
+  function handleGroupBChange(next: Set<string>) {
+    setGroupB(next);
     setGroupA((prev) => {
-      const next = new Set(prev);
-      if (group === "a") next.add(jobId);
-      else next.delete(jobId);
-      return next;
-    });
-    setGroupB((prev) => {
-      const next = new Set(prev);
-      if (group === "b") next.add(jobId);
-      else next.delete(jobId);
-      return next;
+      const cleaned = new Set(prev);
+      next.forEach((id) => cleaned.delete(id));
+      return cleaned;
     });
   }
 
@@ -299,7 +343,9 @@ function AnalyticsContent() {
       });
       setSpmResults(results);
     } catch (err) {
-      setSpmError(err instanceof Error ? err.message : "Failed to run pattern mining.");
+      setSpmError(
+        err instanceof Error ? err.message : "Failed to run pattern mining.",
+      );
     } finally {
       setSpmLoading(false);
     }
@@ -312,7 +358,14 @@ function AnalyticsContent() {
     if (!spmResults || spmResults.length === 0) return;
     downloadCsv(
       "spm_results.csv",
-      ["Pattern", "I-Frequency", "S-Frequency", "I-Support (mean)", "S-Support", "I-Support (sd)"],
+      [
+        "Pattern",
+        "I-Frequency",
+        "S-Frequency",
+        "I-Support (mean)",
+        "S-Support",
+        "I-Support (sd)",
+      ],
       spmResults.map((r) => [
         r.pattern.join("--->"),
         r.i_frequency,
@@ -320,7 +373,7 @@ function AnalyticsContent() {
         r.i_support_mean.toFixed(6),
         r.support_fraction.toFixed(6),
         r.i_support_sd.toFixed(6),
-      ])
+      ]),
     );
   }
 
@@ -347,7 +400,11 @@ function AnalyticsContent() {
       });
       setDsmResults(results);
     } catch (err) {
-      setDsmError(err instanceof Error ? err.message : "Failed to run differential mining.");
+      setDsmError(
+        err instanceof Error
+          ? err.message
+          : "Failed to run differential mining.",
+      );
     } finally {
       setDsmLoading(false);
     }
@@ -359,40 +416,62 @@ function AnalyticsContent() {
     if (!dsmResults || dsmResults.length === 0) return;
     downloadCsv(
       "dsm_results.csv",
-      ["pattern", "ttest_value", "isupportleft_mean", "isupportright_mean", "Group"],
+      [
+        "pattern",
+        "ttest_value",
+        "isupportleft_mean",
+        "isupportright_mean",
+        "Group",
+      ],
       dsmResults.map((r) => [
         r.pattern.join("--->"),
         r.p_value,
         r.isupport_left_mean === null ? "" : r.isupport_left_mean.toFixed(6),
         r.isupport_right_mean === null ? "" : r.isupport_right_mean.toFixed(6),
         r.group,
-      ])
+      ]),
     );
   }
 
-  async function loadTimeline(jobId: string) {
-    setTimelineJobId(jobId);
-    setTimelineLog(null);
+  async function loadTimelines() {
     setTimelineError(null);
-    if (!jobId) return;
+    if (timelineSelection.size < 1) {
+      setTimelineError("Select at least one processed video.");
+      return;
+    }
     setTimelineLoading(true);
+    setTimelineLogs(null);
     try {
-      setTimelineLog(await api.logs.get(jobId));
+      const selectedJobs = doneJobs.filter((j) =>
+        timelineSelection.has(j.job_id),
+      );
+      const logs = await Promise.all(
+        selectedJobs.map((j) => api.logs.get(j.job_id)),
+      );
+      setTimelineLogs(logs);
     } catch (err) {
-      setTimelineError(err instanceof Error ? err.message : "Failed to load this video's scene log.");
+      setTimelineError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load one or more scene logs.",
+      );
     } finally {
       setTimelineLoading(false);
     }
   }
 
-  const timelineSegments = useMemo(() => {
-    if (!timelineLog) return null;
-    return timelineLog.scenes.map((s) => ({
-      label: s.class,
-      startSec: parseHms(s.start_time),
-      endSec: parseHms(s.end_time),
+  const timelineEntries = useMemo(() => {
+    if (!timelineLogs) return null;
+    return timelineLogs.map((log) => ({
+      jobId: log.job_id,
+      label: log.original_filename,
+      segments: log.scenes.map((s) => ({
+        label: s.class,
+        startSec: parseHms(s.start_time),
+        endSec: parseHms(s.end_time),
+      })),
     }));
-  }, [timelineLog]);
+  }, [timelineLogs]);
 
   return (
     <AppShell section="analytics" crumb="Analytics">
@@ -414,7 +493,11 @@ function AnalyticsContent() {
           onChange={setTab}
         />
 
-        {jobsError && <Alert tone="danger" className="mb-6">{jobsError}</Alert>}
+        {jobsError && (
+          <Alert tone="danger" className="mb-6">
+            {jobsError}
+          </Alert>
+        )}
 
         {jobs === null ? (
           <Spinner label="Loading your processed videos..." />
@@ -430,29 +513,24 @@ function AnalyticsContent() {
                 title="Select videos"
                 description="Descriptive stats below are computed only across the videos you pick here."
               />
-              <ul className="max-h-96 space-y-1 overflow-auto">
-                {doneJobs.map((job) => (
-                  <li key={job.job_id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50">
-                      <input
-                        type="checkbox"
-                        checked={overviewSelection.has(job.job_id)}
-                        onChange={() => toggleOverview(job.job_id)}
-                        className="h-4 w-4"
-                      />
-                      <span className="truncate text-sm text-text">{job.original_filename}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <JobSelectList
+                jobs={doneJobs}
+                selected={overviewSelection}
+                onChange={setOverviewSelection}
+              />
             </Card>
 
             <Card>
               <CardHeader title="Generate report" />
               <p className="mb-4 text-sm text-neutral-500">
-                {overviewSelection.size} video{overviewSelection.size === 1 ? "" : "s"} selected
+                {overviewSelection.size} video
+                {overviewSelection.size === 1 ? "" : "s"} selected
               </p>
-              <Button className="w-full" onClick={runOverview} loading={overviewLoading}>
+              <Button
+                className="w-full"
+                onClick={runOverview}
+                loading={overviewLoading}
+              >
                 Generate report
               </Button>
               {overviewError && (
@@ -465,22 +543,44 @@ function AnalyticsContent() {
             {overviewResult && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-3">
-                  <p className="text-sm text-neutral-500">Download this report as a spreadsheet or a formatted PDF.</p>
+                  <p className="text-sm text-neutral-500">
+                    Download this report as a spreadsheet or a formatted PDF.
+                  </p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={downloadOverviewCsv}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadOverviewCsv}
+                    >
                       Download CSV
                     </Button>
-                    <Button variant="outline" size="sm" onClick={downloadOverviewPdfReport}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadOverviewPdfReport}
+                    >
                       Download PDF
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-4">
-                  <StatCard label="Videos analyzed" value={overviewResult.videoCount} />
-                  <StatCard label="Total scenes" value={overviewResult.totalScenes} />
-                  <StatCard label="Total duration" value={formatSeconds(overviewResult.totalDurationSec)} />
-                  <StatCard label="Avg. confidence" value={`${(overviewResult.avgConfidence * 100).toFixed(1)}%`} />
+                  <StatCard
+                    label="Videos analyzed"
+                    value={overviewResult.videoCount}
+                  />
+                  <StatCard
+                    label="Total scenes"
+                    value={overviewResult.totalScenes}
+                  />
+                  <StatCard
+                    label="Total duration"
+                    value={formatSeconds(overviewResult.totalDurationSec)}
+                  />
+                  <StatCard
+                    label="Avg. confidence"
+                    value={`${(overviewResult.avgConfidence * 100).toFixed(1)}%`}
+                  />
                 </div>
 
                 <Card className="lg:col-span-3">
@@ -495,18 +595,30 @@ function AnalyticsContent() {
                           <th className="px-3 py-2 font-medium">Class</th>
                           <th className="px-3 py-2 font-medium">Scenes</th>
                           <th className="px-3 py-2 font-medium">Total time</th>
-                          <th className="px-3 py-2 font-medium">Avg. scene length</th>
-                          <th className="px-3 py-2 font-medium">Avg. confidence</th>
+                          <th className="px-3 py-2 font-medium">
+                            Avg. scene length
+                          </th>
+                          <th className="px-3 py-2 font-medium">
+                            Avg. confidence
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-100">
                         {classRows.map((r) => (
                           <tr key={r.label}>
-                            <td className="px-3 py-2 font-medium text-text">{r.label}</td>
+                            <td className="px-3 py-2 font-medium text-text">
+                              {r.label}
+                            </td>
                             <td className="px-3 py-2 font-mono">{r.count}</td>
-                            <td className="px-3 py-2 font-mono">{formatSeconds(r.totalSec)}</td>
-                            <td className="px-3 py-2 font-mono">{formatSeconds(r.avgDurationSec)}</td>
-                            <td className="px-3 py-2 font-mono">{(r.avgConfidence * 100).toFixed(1)}%</td>
+                            <td className="px-3 py-2 font-mono">
+                              {formatSeconds(r.totalSec)}
+                            </td>
+                            <td className="px-3 py-2 font-mono">
+                              {formatSeconds(r.avgDurationSec)}
+                            </td>
+                            <td className="px-3 py-2 font-mono">
+                              {(r.avgConfidence * 100).toFixed(1)}%
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -515,14 +627,28 @@ function AnalyticsContent() {
                 </Card>
 
                 <Card className="lg:col-span-3">
-                  <CardHeader title="Class distribution" description="Scene count per class." />
-                  <BarChart data={classRows.map((r) => ({ label: r.label, value: r.count }))} />
+                  <CardHeader
+                    title="Class distribution"
+                    description="Scene count per class."
+                  />
+                  <BarChart
+                    data={classRows.map((r) => ({
+                      label: r.label,
+                      value: r.count,
+                    }))}
+                  />
                 </Card>
 
                 <Card className="lg:col-span-3">
-                  <CardHeader title="Time spent per class" description="Minutes of video attributed to each class." />
+                  <CardHeader
+                    title="Time spent per class"
+                    description="Minutes of video attributed to each class."
+                  />
                   <BarChart
-                    data={classRows.map((r) => ({ label: r.label, value: Math.round((r.totalSec / 60) * 10) / 10 }))}
+                    data={classRows.map((r) => ({
+                      label: r.label,
+                      value: Math.round((r.totalSec / 60) * 10) / 10,
+                    }))}
                   />
                 </Card>
 
@@ -532,10 +658,12 @@ function AnalyticsContent() {
                     description="How each scene's class was decided — the CNN alone, a keyword rule, or CNN+OCR fusion."
                   />
                   <DonutChart
-                    data={Object.entries(overviewResult.sourceCounts).map(([key, value]) => ({
-                      label: SOURCE_LABELS[key] ?? key,
-                      value,
-                    }))}
+                    data={Object.entries(overviewResult.sourceCounts).map(
+                      ([key, value]) => ({
+                        label: SOURCE_LABELS[key] ?? key,
+                        value,
+                      }),
+                    )}
                   />
                 </Card>
 
@@ -545,7 +673,11 @@ function AnalyticsContent() {
                     description="Spot outlier videos that dominate the aggregate numbers above."
                   />
                   <HorizontalBarChart
-                    data={overviewResult.perVideo.map((v) => ({ label: v.label, value: v.value, hint: `${v.value} scenes` }))}
+                    data={overviewResult.perVideo.map((v) => ({
+                      label: v.label,
+                      value: v.value,
+                      hint: `${v.value} scenes`,
+                    }))}
                   />
                 </Card>
               </>
@@ -554,29 +686,24 @@ function AnalyticsContent() {
         ) : tab === "spm" ? (
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader title="Select videos" description="Frequent sub-sequences across the chosen videos." />
-              <ul className="max-h-96 space-y-1 overflow-auto">
-                {doneJobs.map((job) => (
-                  <li key={job.job_id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50">
-                      <input
-                        type="checkbox"
-                        checked={spmSelection.has(job.job_id)}
-                        onChange={() => toggleSpm(job.job_id)}
-                        className="h-4 w-4"
-                      />
-                      <span className="truncate text-sm text-text">{job.original_filename}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <CardHeader
+                title="Select videos"
+                description="Frequent sub-sequences across the chosen videos."
+              />
+              <JobSelectList
+                jobs={doneJobs}
+                selected={spmSelection}
+                onChange={setSpmSelection}
+              />
             </Card>
 
             <Card>
               <CardHeader title="Parameters" />
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="spm-support">S Support Threshold (fraction of videos)</Label>
+                  <Label htmlFor="spm-support">
+                    S Support Threshold (fraction of videos)
+                  </Label>
                   <Input
                     id="spm-support"
                     type="number"
@@ -615,7 +742,9 @@ function AnalyticsContent() {
                   onClick={() => setSpmShowAdvanced((v) => !v)}
                   className="text-sm font-medium text-primary hover:underline"
                 >
-                  {spmShowAdvanced ? "− Hide advanced options" : "+ Advanced options"}
+                  {spmShowAdvanced
+                    ? "− Hide advanced options"
+                    : "+ Advanced options"}
                 </button>
 
                 {spmShowAdvanced && (
@@ -628,7 +757,9 @@ function AnalyticsContent() {
                         min={1}
                         max={20}
                         value={spmSlidingWindowMin}
-                        onChange={(e) => setSpmSlidingWindowMin(Number(e.target.value))}
+                        onChange={(e) =>
+                          setSpmSlidingWindowMin(Number(e.target.value))
+                        }
                       />
                     </div>
                     <div>
@@ -639,7 +770,9 @@ function AnalyticsContent() {
                         min={1}
                         max={20}
                         value={spmSlidingWindowMax}
-                        onChange={(e) => setSpmSlidingWindowMax(Number(e.target.value))}
+                        onChange={(e) =>
+                          setSpmSlidingWindowMax(Number(e.target.value))
+                        }
                       />
                     </div>
                     <div>
@@ -653,30 +786,44 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="spm-max-gap">Max Gap (blank = unlimited)</Label>
+                      <Label htmlFor="spm-max-gap">
+                        Max Gap (blank = unlimited)
+                      </Label>
                       <Input
                         id="spm-max-gap"
                         type="number"
                         min={0}
                         value={spmMaxGap}
-                        onChange={(e) => setSpmMaxGap(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={(e) =>
+                          setSpmMaxGap(
+                            e.target.value === "" ? "" : Number(e.target.value),
+                          )
+                        }
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <Label htmlFor="spm-i-support">I Support Threshold (min avg occurrences/video)</Label>
+                      <Label htmlFor="spm-i-support">
+                        I Support Threshold (min avg occurrences/video)
+                      </Label>
                       <Input
                         id="spm-i-support"
                         type="number"
                         min={0}
                         step={0.1}
                         value={spmMinInstanceSupport}
-                        onChange={(e) => setSpmMinInstanceSupport(Number(e.target.value))}
+                        onChange={(e) =>
+                          setSpmMinInstanceSupport(Number(e.target.value))
+                        }
                       />
                     </div>
                   </div>
                 )}
 
-                <Button className="w-full" onClick={runSpm} loading={spmLoading}>
+                <Button
+                  className="w-full"
+                  onClick={runSpm}
+                  loading={spmLoading}
+                >
                   Run SPM
                 </Button>
                 {spmError && <Alert tone="danger">{spmError}</Alert>}
@@ -689,20 +836,29 @@ function AnalyticsContent() {
                   title={`Frequent patterns (${spmResults.length})`}
                   action={
                     spmResults.length > 0 && (
-                      <Button variant="outline" size="sm" onClick={downloadSpmCsv}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadSpmCsv}
+                      >
                         Download CSV
                       </Button>
                     )
                   }
                 />
                 {spmResults.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No patterns met the minimum support threshold.</p>
+                  <p className="text-sm text-neutral-500">
+                    No patterns met the minimum support threshold.
+                  </p>
                 ) : (
                   <>
                     <HorizontalBarChart
                       data={spmResults.map((r) => ({
                         label: r.pattern.join(" → "),
-                        value: spmSortBy === "i_support" ? r.i_support_mean : r.support_fraction,
+                        value:
+                          spmSortBy === "i_support"
+                            ? r.i_support_mean
+                            : r.support_fraction,
                         hint:
                           spmSortBy === "i_support"
                             ? r.i_support_mean.toFixed(2)
@@ -714,24 +870,41 @@ function AnalyticsContent() {
                         <thead>
                           <tr className="border-b border-neutral-200 text-neutral-500">
                             <th className="py-2 pr-4 font-medium">Pattern</th>
-                            <th className="py-2 pr-4 font-medium">I-Frequency</th>
-                            <th className="py-2 pr-4 font-medium">S-Frequency</th>
-                            <th className="py-2 pr-4 font-medium">I-Support (mean)</th>
+                            <th className="py-2 pr-4 font-medium">
+                              I-Frequency
+                            </th>
+                            <th className="py-2 pr-4 font-medium">
+                              S-Frequency
+                            </th>
+                            <th className="py-2 pr-4 font-medium">
+                              I-Support (mean)
+                            </th>
                             <th className="py-2 pr-4 font-medium">S-Support</th>
-                            <th className="py-2 pr-4 font-medium">I-Support (sd)</th>
+                            <th className="py-2 pr-4 font-medium">
+                              I-Support (sd)
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {spmResults.map((r, i) => (
-                            <tr key={i} className="border-b border-neutral-100 last:border-0">
+                            <tr
+                              key={i}
+                              className="border-b border-neutral-100 last:border-0"
+                            >
                               <td className="max-w-xs break-words py-2 pr-4 font-mono text-xs">
                                 {r.pattern.join(" ---> ")}
                               </td>
                               <td className="py-2 pr-4">{r.i_frequency}</td>
                               <td className="py-2 pr-4">{r.support}</td>
-                              <td className="py-2 pr-4">{r.i_support_mean.toFixed(2)}</td>
-                              <td className="py-2 pr-4">{r.support_fraction.toFixed(2)}</td>
-                              <td className="py-2 pr-4">{r.i_support_sd.toFixed(2)}</td>
+                              <td className="py-2 pr-4">
+                                {r.i_support_mean.toFixed(2)}
+                              </td>
+                              <td className="py-2 pr-4">
+                                {r.support_fraction.toFixed(2)}
+                              </td>
+                              <td className="py-2 pr-4">
+                                {r.i_support_sd.toFixed(2)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -745,43 +918,31 @@ function AnalyticsContent() {
         ) : tab === "dsm" ? (
           <div className="grid gap-6 lg:grid-cols-3">
             <Card>
-              <CardHeader title="Group A" description={`${groupA.size} selected`} />
-              <ul className="max-h-72 space-y-1 overflow-auto">
-                {doneJobs.map((job) => (
-                  <li key={job.job_id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50">
-                      <input
-                        type="checkbox"
-                        checked={groupA.has(job.job_id)}
-                        onChange={() => setGroup(job.job_id, groupA.has(job.job_id) ? null : "a")}
-                        disabled={groupB.has(job.job_id)}
-                        className="h-4 w-4"
-                      />
-                      <span className="truncate text-sm text-text">{job.original_filename}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <CardHeader
+                title="Group A"
+                description={`${groupA.size} selected`}
+              />
+              <JobSelectList
+                jobs={doneJobs}
+                selected={groupA}
+                onChange={handleGroupAChange}
+                disabledIds={groupB}
+                maxHeightClassName="max-h-72"
+              />
             </Card>
 
             <Card>
-              <CardHeader title="Group B" description={`${groupB.size} selected`} />
-              <ul className="max-h-72 space-y-1 overflow-auto">
-                {doneJobs.map((job) => (
-                  <li key={job.job_id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50">
-                      <input
-                        type="checkbox"
-                        checked={groupB.has(job.job_id)}
-                        onChange={() => setGroup(job.job_id, groupB.has(job.job_id) ? null : "b")}
-                        disabled={groupA.has(job.job_id)}
-                        className="h-4 w-4"
-                      />
-                      <span className="truncate text-sm text-text">{job.original_filename}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <CardHeader
+                title="Group B"
+                description={`${groupB.size} selected`}
+              />
+              <JobSelectList
+                jobs={doneJobs}
+                selected={groupB}
+                onChange={handleGroupBChange}
+                disabledIds={groupA}
+                maxHeightClassName="max-h-72"
+              />
             </Card>
 
             <Card>
@@ -815,18 +976,26 @@ function AnalyticsContent() {
                   <Select
                     id="dsm-test-type"
                     value={dsmTestType}
-                    onChange={(e) => setDsmTestType(e.target.value as DSMTestType)}
+                    onChange={(e) =>
+                      setDsmTestType(e.target.value as DSMTestType)
+                    }
                   >
                     <option value="ttest_ind">ttest_ind</option>
-                    <option value="poisson_means_test">poisson_means_test</option>
+                    <option value="poisson_means_test">
+                      poisson_means_test
+                    </option>
                     <option value="mannwhitneyu">mannwhitneyu</option>
                     <option value="bws_test">bws_test</option>
                     <option value="ranksums">ranksums</option>
                     <option value="brunnermunzel">brunnermunzel</option>
                     <option value="mood">mood</option>
                     <option value="ansari">ansari</option>
-                    <option value="cramervonmises_2samp">cramervonmises_2samp</option>
-                    <option value="epps_singleton_2samp">epps_singleton_2samp</option>
+                    <option value="cramervonmises_2samp">
+                      cramervonmises_2samp
+                    </option>
+                    <option value="epps_singleton_2samp">
+                      epps_singleton_2samp
+                    </option>
                     <option value="ks_2samp">ks_2samp</option>
                     <option value="kstest">kstest</option>
                   </Select>
@@ -840,7 +1009,9 @@ function AnalyticsContent() {
                     max={1}
                     step={0.01}
                     value={dsmThresholdPValue}
-                    onChange={(e) => setDsmThresholdPValue(Number(e.target.value))}
+                    onChange={(e) =>
+                      setDsmThresholdPValue(Number(e.target.value))
+                    }
                   />
                 </div>
 
@@ -849,7 +1020,9 @@ function AnalyticsContent() {
                   onClick={() => setDsmShowAdvanced((v) => !v)}
                   className="text-sm font-medium text-primary hover:underline"
                 >
-                  {dsmShowAdvanced ? "− Hide advanced options" : "+ Advanced options"}
+                  {dsmShowAdvanced
+                    ? "− Hide advanced options"
+                    : "+ Advanced options"}
                 </button>
 
                 {dsmShowAdvanced && (
@@ -862,7 +1035,9 @@ function AnalyticsContent() {
                         min={1}
                         max={20}
                         value={dsmSlidingWindowMin}
-                        onChange={(e) => setDsmSlidingWindowMin(Number(e.target.value))}
+                        onChange={(e) =>
+                          setDsmSlidingWindowMin(Number(e.target.value))
+                        }
                       />
                     </div>
                     <div>
@@ -873,7 +1048,9 @@ function AnalyticsContent() {
                         min={1}
                         max={20}
                         value={dsmSlidingWindowMax}
-                        onChange={(e) => setDsmSlidingWindowMax(Number(e.target.value))}
+                        onChange={(e) =>
+                          setDsmSlidingWindowMax(Number(e.target.value))
+                        }
                       />
                     </div>
                     <div>
@@ -887,30 +1064,44 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="dsm-max-gap">Max Gap (blank = unlimited)</Label>
+                      <Label htmlFor="dsm-max-gap">
+                        Max Gap (blank = unlimited)
+                      </Label>
                       <Input
                         id="dsm-max-gap"
                         type="number"
                         min={0}
                         value={dsmMaxGap}
-                        onChange={(e) => setDsmMaxGap(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={(e) =>
+                          setDsmMaxGap(
+                            e.target.value === "" ? "" : Number(e.target.value),
+                          )
+                        }
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <Label htmlFor="dsm-i-support">I Support Threshold (min avg occurrences/video)</Label>
+                      <Label htmlFor="dsm-i-support">
+                        I Support Threshold (min avg occurrences/video)
+                      </Label>
                       <Input
                         id="dsm-i-support"
                         type="number"
                         min={0}
                         step={0.1}
                         value={dsmMinInstanceSupport}
-                        onChange={(e) => setDsmMinInstanceSupport(Number(e.target.value))}
+                        onChange={(e) =>
+                          setDsmMinInstanceSupport(Number(e.target.value))
+                        }
                       />
                     </div>
                   </div>
                 )}
 
-                <Button className="w-full" onClick={runDsm} loading={dsmLoading}>
+                <Button
+                  className="w-full"
+                  onClick={runDsm}
+                  loading={dsmLoading}
+                >
                   Run DSM
                 </Button>
                 {dsmError && <Alert tone="danger">{dsmError}</Alert>}
@@ -924,14 +1115,20 @@ function AnalyticsContent() {
                   description={`Patterns whose per-video occurrence rate differs significantly (p ≤ ${dsmThresholdPValue}) between Group A ("left") and Group B ("right"), via ${dsmTestType}.`}
                   action={
                     dsmResults.length > 0 && (
-                      <Button variant="outline" size="sm" onClick={downloadDsmCsv}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadDsmCsv}
+                      >
                         Download CSV
                       </Button>
                     )
                   }
                 />
                 {dsmResults.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No significantly differing patterns found at this threshold.</p>
+                  <p className="text-sm text-neutral-500">
+                    No significantly differing patterns found at this threshold.
+                  </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -939,20 +1136,37 @@ function AnalyticsContent() {
                         <tr className="border-b border-neutral-200 text-neutral-500">
                           <th className="py-2 pr-4 font-medium">Pattern</th>
                           <th className="py-2 pr-4 font-medium">p-value</th>
-                          <th className="py-2 pr-4 font-medium">I-Support left mean</th>
-                          <th className="py-2 pr-4 font-medium">I-Support right mean</th>
+                          <th className="py-2 pr-4 font-medium">
+                            I-Support left mean
+                          </th>
+                          <th className="py-2 pr-4 font-medium">
+                            I-Support right mean
+                          </th>
                           <th className="py-2 pr-4 font-medium">Group</th>
                         </tr>
                       </thead>
                       <tbody>
                         {dsmResults.map((r, i) => (
-                          <tr key={i} className="border-b border-neutral-100 last:border-0">
+                          <tr
+                            key={i}
+                            className="border-b border-neutral-100 last:border-0"
+                          >
                             <td className="max-w-xs break-words py-2 pr-4 font-mono text-xs">
                               {r.pattern.join(" ---> ")}
                             </td>
-                            <td className="py-2 pr-4">{r.p_value.toExponential(2)}</td>
-                            <td className="py-2 pr-4">{r.isupport_left_mean === null ? "—" : r.isupport_left_mean.toFixed(2)}</td>
-                            <td className="py-2 pr-4">{r.isupport_right_mean === null ? "—" : r.isupport_right_mean.toFixed(2)}</td>
+                            <td className="py-2 pr-4">
+                              {r.p_value.toExponential(2)}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {r.isupport_left_mean === null
+                                ? "—"
+                                : r.isupport_left_mean.toFixed(2)}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {r.isupport_right_mean === null
+                                ? "—"
+                                : r.isupport_right_mean.toFixed(2)}
+                            </td>
                             <td className="py-2 pr-4 capitalize">{r.group}</td>
                           </tr>
                         ))}
@@ -964,39 +1178,56 @@ function AnalyticsContent() {
             )}
           </div>
         ) : (
-          <Card>
-            <CardHeader title="Video timeline" description="Pick one video to see its scenes laid out over time." />
-            <div className="max-w-md">
-              <Label htmlFor="timeline-job">Video</Label>
-              <Select id="timeline-job" value={timelineJobId} onChange={(e) => loadTimeline(e.target.value)}>
-                <option value="">Choose a processed video…</option>
-                {doneJobs.map((job) => (
-                  <option key={job.job_id} value={job.job_id}>
-                    {job.original_filename}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            {timelineError && (
-              <Alert tone="danger" className="mt-4">
-                {timelineError}
-              </Alert>
-            )}
-            {timelineLoading && (
-              <div className="mt-6">
-                <Spinner label="Loading scene log..." />
-              </div>
-            )}
-            {timelineSegments && timelineSegments.length > 0 && (
-              <div className="mt-6">
-                <GanttTimeline
-                  segments={timelineSegments}
-                  totalSeconds={Math.max(...timelineSegments.map((s) => s.endSec), 1)}
-                  height={80}
-                />
-              </div>
-            )}
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title="Select videos"
+                description="Pick one or more videos - each renders as its own timeline below, stacked vertically."
+              />
+              <JobSelectList
+                jobs={doneJobs}
+                selected={timelineSelection}
+                onChange={setTimelineSelection}
+              />
+            </Card>
+
+            <Card>
+              <CardHeader title="Load timelines" />
+              <p className="mb-4 text-sm text-neutral-500">
+                {timelineSelection.size} video
+                {timelineSelection.size === 1 ? "" : "s"} selected
+              </p>
+              <Button
+                className="w-full"
+                onClick={loadTimelines}
+                loading={timelineLoading}
+              >
+                Load timelines
+              </Button>
+              {timelineError && (
+                <Alert tone="danger" className="mt-3">
+                  {timelineError}
+                </Alert>
+              )}
+            </Card>
+
+            {timelineEntries &&
+              timelineEntries.map((entry) => (
+                <Card key={entry.jobId} className="lg:col-span-3">
+                  <CardHeader title={entry.label} />
+                  {entry.segments.length > 0 && (
+                    <GanttTimeline
+                      segments={entry.segments}
+                      totalSeconds={Math.max(
+                        ...entry.segments.map((s) => s.endSec),
+                        1,
+                      )}
+                      height={80}
+                    />
+                  )}
+                </Card>
+              ))}
+          </div>
         )}
       </Container>
     </AppShell>
