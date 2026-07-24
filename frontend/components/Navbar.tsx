@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useClickOutside } from "@/lib/useClickOutside";
 import { buttonClasses } from "./ui/Button";
 import { ThemeToggleButton, ThemeToggleSegmented } from "./ThemeToggle";
 
@@ -41,6 +42,8 @@ export function Navbar() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(accountMenuRef, () => setMenuOpen(false), menuOpen);
 
   async function handleLogout() {
     setMenuOpen(false);
@@ -104,7 +107,7 @@ export function Navbar() {
           {loading ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-neutral-100" />
           ) : firebaseUser ? (
-            <div className="relative">
+            <div className="relative" ref={accountMenuRef}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-ink"
@@ -118,43 +121,33 @@ export function Navbar() {
                 )}
               </button>
               {menuOpen && (
-                <>
-                  {/* Click-outside catcher — same pattern as
-                   * Sidebar's AccountFooter, so this closes on an outside
-                   * click instead of only via the toggle button itself. */}
-                  <div
-                    className="fixed inset-0 z-[90]"
-                    onClick={() => setMenuOpen(false)}
-                    aria-hidden="true"
-                  />
-                  <div
-                    role="menu"
-                    className="absolute right-0 z-[100] mt-2 w-56 rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
-                  >
-                    <div className="border-b border-neutral-100 px-3 py-2">
-                      <p className="truncate text-sm font-medium text-text">
-                        {profile?.display_name || "Account"}
-                      </p>
-                      <p className="truncate text-sm text-neutral-500">
-                        {profile?.email ?? firebaseUser.email}
-                      </p>
-                      {profile?.role === "admin" && (
-                        <span className="mt-1 inline-block rounded-full bg-secondary-tint px-2 py-0.5 text-sm font-medium text-secondary-hover">
-                          admin
-                        </span>
-                      )}
-                    </div>
-                    <ThemeToggleSegmented />
-                    <div className="my-1 border-t border-neutral-100" />
-                    <button
-                      role="menuitem"
-                      onClick={handleLogout}
-                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
-                    >
-                      Sign out
-                    </button>
+                <div
+                  role="menu"
+                  className="absolute right-0 z-[100] mt-2 w-56 rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
+                >
+                  <div className="border-b border-neutral-100 px-3 py-2">
+                    <p className="truncate text-sm font-medium text-text">
+                      {profile?.display_name || "Account"}
+                    </p>
+                    <p className="truncate text-sm text-neutral-500">
+                      {profile?.email ?? firebaseUser.email}
+                    </p>
+                    {profile?.role === "admin" && (
+                      <span className="mt-1 inline-block rounded-full bg-secondary-tint px-2 py-0.5 text-sm font-medium text-secondary-hover">
+                        admin
+                      </span>
+                    )}
                   </div>
-                </>
+                  <ThemeToggleSegmented />
+                  <div className="my-1 border-t border-neutral-100" />
+                  <button
+                    role="menuitem"
+                    onClick={handleLogout}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
+                  >
+                    Sign out
+                  </button>
+                </div>
               )}
             </div>
           ) : (

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useClickOutside } from "@/lib/useClickOutside";
 import { ThemeToggleSegmented } from "@/components/ThemeToggle";
 import {
   IconGrid,
@@ -108,6 +109,8 @@ function AccountFooter({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, firebaseUser, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
 
   async function handleLogout() {
     setMenuOpen(false);
@@ -118,7 +121,7 @@ function AccountFooter({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="border-t border-neutral-200 p-3">
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen((v) => !v)}
           className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-neutral-100"
@@ -142,28 +145,20 @@ function AccountFooter({ onNavigate }: { onNavigate?: () => void }) {
         </button>
 
         {menuOpen && (
-          <>
-            {/* Click-outside catcher */}
-            <div
-              className="fixed inset-0 z-[90]"
-              onClick={() => setMenuOpen(false)}
-              aria-hidden="true"
-            />
-            <div
-              role="menu"
-              className="absolute bottom-full left-0 z-[100] mb-2 w-full rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
+          <div
+            role="menu"
+            className="absolute bottom-full left-0 z-[100] mb-2 w-full rounded-xl border border-neutral-200 bg-surface p-1.5 shadow-lg"
+          >
+            <ThemeToggleSegmented />
+            <div className="my-1 border-t border-neutral-100" />
+            <button
+              role="menuitem"
+              onClick={handleLogout}
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
             >
-              <ThemeToggleSegmented />
-              <div className="my-1 border-t border-neutral-100" />
-              <button
-                role="menuitem"
-                onClick={handleLogout}
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-tint"
-              >
-                Sign out
-              </button>
-            </div>
-          </>
+              Sign out
+            </button>
+          </div>
         )}
       </div>
     </div>

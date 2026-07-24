@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/Badge";
 import { HeroPreview } from "@/components/HeroPreview";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
-// SoftwareApplication JSON-LD — this is the actual "what is this product"
+// SoftwareApplication JSON-LD - this is the actual "what is this product"
 // structured data (the root layout's Organization JSON-LD only says who
 // publishes it). Eligible for Google's software/app rich-result treatment.
-// No `aggregateRating`/`review` — fabricating those to look good in search
+// No `aggregateRating`/`review` - fabricating those to look good in search
 // is exactly the kind of structured-data spam Google's guidelines
 // explicitly penalize, so it's omitted rather than faked.
 const softwareAppJsonLd = {
@@ -60,7 +60,7 @@ const features = [
   {
     title: "Real test-set metrics",
     description:
-      "A genuine train/val/test split with accuracy, per-class F1, and a confusion matrix — every time.",
+      "A genuine train/val/test split with accuracy, per-class F1, and a confusion matrix - every time.",
     icon: ICONS.chart,
     big: true,
   },
@@ -80,7 +80,7 @@ const features = [
   {
     title: "Scene-by-scene logs",
     description:
-      "A timestamped log of every screen or action, with confidence — viewable in-app or as CSV.",
+      "A timestamped log of every screen or action, with confidence - viewable in-app or as CSV.",
     icon: ICONS.list,
   },
   {
@@ -108,7 +108,7 @@ const steps = [
     number: "02",
     title: "Process",
     description:
-      "Upload a recording and pick a model — scenes and classes are detected automatically.",
+      "Upload a recording and pick a model - scenes and classes are detected automatically.",
   },
   {
     number: "03",
@@ -169,7 +169,7 @@ export default function LandingPage() {
             Built for what point-and-click tools miss
           </h2>
           <p className="mt-3 max-w-2xl text-base text-neutral-600">
-            One platform that trains, evaluates, processes, and analyzes — not a
+            One platform that trains, evaluates, processes, and analyzes - not a
             single-video manual workflow.
           </p>
 
@@ -240,7 +240,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="pb-24">
         <Container>
-          {/* dither-dots, not dither-panel — dither-panel's radial mask is
+          {/* dither-dots, not dither-panel - dither-panel's radial mask is
            * meant for an empty decorative block and crops/fades any real
            * text inside it unevenly. dither-dots is just a background dot
            * texture with no mask, so it's safe behind actual content. */}

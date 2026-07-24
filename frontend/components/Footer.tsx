@@ -38,7 +38,7 @@ export function Footer() {
             </p>
             <p className="mt-1 max-w-sm text-sm text-neutral-600">
               Train a classifier on your app&apos;s screens, then turn any
-              screen recording into a structured activity log — automatically.
+              screen recording into a structured activity log automatically.
             </p>
           </div>
           <nav
