@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { api } from "@/lib/api";
@@ -20,7 +20,6 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
-import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import {
@@ -30,6 +29,7 @@ import {
   GanttTimeline,
 } from "@/components/ui/charts";
 import { JobSelectList } from "@/components/analytics/JobSelectList";
+import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 
 type Tab = "overview" | "spm" | "dsm" | "timeline";
 
@@ -55,6 +55,10 @@ const SOURCE_LABELS: Record<string, string> = {
   fusion: "CNN + OCR fusion",
   cnn_per_class_override: "CNN (OCR excluded)",
 };
+
+function stagger(index: number, stepMs = 60): CSSProperties {
+  return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
+}
 
 function parseHms(s: string): number {
   const parts = s.split(":").map(Number);
@@ -500,7 +504,21 @@ function AnalyticsContent() {
         )}
 
         {jobs === null ? (
-          <Spinner label="Loading your processed videos..." />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <Skeleton className="h-4 w-40" />
+              <div className="mt-4">
+                <SkeletonList rows={6} />
+              </div>
+            </Card>
+            <Card>
+              <Skeleton className="h-4 w-28" />
+              <div className="mt-4 space-y-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            </Card>
+          </div>
         ) : doneJobs.length === 0 ? (
           <EmptyState
             title="No completed videos yet"
@@ -831,7 +849,7 @@ function AnalyticsContent() {
             </Card>
 
             {spmResults && (
-              <Card className="lg:col-span-3">
+              <Card className="animate-fade-in-up lg:col-span-3">
                 <CardHeader
                   title={`Frequent patterns (${spmResults.length})`}
                   action={
@@ -1109,7 +1127,7 @@ function AnalyticsContent() {
             </Card>
 
             {dsmResults && (
-              <Card className="lg:col-span-3">
+              <Card className="animate-fade-in-up lg:col-span-3">
                 <CardHeader
                   title={`Differential patterns (${dsmResults.length})`}
                   description={`Patterns whose per-video occurrence rate differs significantly (p ≤ ${dsmThresholdPValue}) between Group A ("left") and Group B ("right"), via ${dsmTestType}.`}
@@ -1212,8 +1230,8 @@ function AnalyticsContent() {
             </Card>
 
             {timelineEntries &&
-              timelineEntries.map((entry) => (
-                <Card key={entry.jobId} className="lg:col-span-3">
+              timelineEntries.map((entry, i) => (
+                <Card key={entry.jobId} className="animate-fade-in-up lg:col-span-3" style={stagger(i, 80)}>
                   <CardHeader title={entry.label} />
                   {entry.segments.length > 0 && (
                     <GanttTimeline

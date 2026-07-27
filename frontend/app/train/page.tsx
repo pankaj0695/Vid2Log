@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
@@ -21,6 +21,11 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImageDropzone } from "@/components/train/ImageDropzone";
 import { MetricsReport } from "@/components/train/MetricsReport";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+
+function stagger(index: number, stepMs = 45): CSSProperties {
+  return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
+}
 
 interface ClassDraft {
   id: string;
@@ -619,13 +624,25 @@ function TrainContent() {
               </Alert>
             )}
             {trainingJobs === null ? (
-              <Spinner label="Loading training jobs..." />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="animate-fade-in-up p-4" style={stagger(i, 60)}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="mt-2 h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="h-6 w-20 shrink-0" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
             ) : trainingJobs.length === 0 ? (
               <EmptyState title="No training jobs yet" description="Train a model to see its history here." />
             ) : (
               <div className="space-y-3">
-                {trainingJobs.map((job) => (
-                  <Card key={job.training_job_id} className="p-4">
+                {trainingJobs.map((job, i) => (
+                  <Card key={job.training_job_id} className="animate-fade-in-up p-4" style={stagger(i, 40)}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-text">{job.model_name}</p>
@@ -712,13 +729,23 @@ function TrainContent() {
               </Alert>
             )}
             {models === null ? (
-              <Spinner label="Loading models..." />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-fade-in-up" style={stagger(i, 50)}>
+                    <SkeletonCard />
+                  </div>
+                ))}
+              </div>
             ) : models.length === 0 ? (
               <EmptyState title="No models yet" description="Train your first model to see it here." />
             ) : (
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {models.map((m) => (
-                  <li key={m.model_id} className="rounded-lg border border-neutral-200 p-4">
+                {models.map((m, i) => (
+                  <li
+                    key={m.model_id}
+                    className="hover-lift animate-fade-in-up rounded-lg border border-neutral-200 p-4"
+                    style={stagger(i, 50)}
+                  >
                     {renamingModelId === m.model_id ? (
                       <div>
                         <Input

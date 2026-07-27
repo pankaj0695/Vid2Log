@@ -18,8 +18,10 @@ export function Tabs<T extends string>({
           role="tab"
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            active === tab.id ? "bg-primary text-ink" : "text-neutral-500 hover:bg-neutral-100 hover:text-text"
+          className={`rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 ease-out ${
+            active === tab.id
+              ? "bg-primary text-ink shadow-[0_4px_14px_-6px_var(--color-primary)]"
+              : "text-neutral-500 hover:bg-neutral-100 hover:text-text"
           }`}
         >
           {tab.label}

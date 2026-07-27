@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { useAuth } from "@/lib/auth-context";
@@ -12,9 +12,13 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
-import { Spinner } from "@/components/ui/Spinner";
 import { Tabs } from "@/components/ui/Tabs";
 import { DonutChart } from "@/components/ui/charts";
+import { Skeleton, SkeletonStatGrid } from "@/components/ui/Skeleton";
+
+function stagger(index: number, stepMs = 45): CSSProperties {
+  return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
+}
 
 type Tab = "overview" | "users";
 
@@ -99,14 +103,31 @@ function AdminContent() {
         {tab === "overview" ? (
           <>
             {stats === null ? (
-              <Spinner label="Loading system stats..." />
+              <div className="space-y-6">
+                <SkeletonStatGrid count={4} />
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <Card className="lg:col-span-2">
+                    <Skeleton className="mx-auto h-40 w-40 rounded-full" />
+                  </Card>
+                  <Card>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="mt-2 h-3 w-full" />
+                    <Skeleton className="mt-4 h-11 w-full" />
+                  </Card>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <StatCard label="Users" value={stats.total_users} hint={`${stats.total_admins} admin(s)`} />
-                  <StatCard label="Video jobs" value={stats.total_jobs} />
-                  <StatCard label="Models" value={stats.total_models} hint={stats.active_model_id ? "1 active" : "none active"} />
-                  <StatCard label="Training jobs" value={stats.total_training_jobs} />
+                  <StatCard label="Video jobs" value={stats.total_jobs} style={stagger(1, 60)} />
+                  <StatCard
+                    label="Models"
+                    value={stats.total_models}
+                    hint={stats.active_model_id ? "1 active" : "none active"}
+                    style={stagger(2, 60)}
+                  />
+                  <StatCard label="Training jobs" value={stats.total_training_jobs} style={stagger(3, 60)} />
                 </div>
 
                 <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -143,7 +164,40 @@ function AdminContent() {
           <Card>
             <CardHeader title="Users" description="Promote or demote accounts between user and admin." />
             {users === null ? (
-              <Spinner label="Loading users..." />
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-neutral-500">
+                    <tr>
+                      <th className="px-2 py-2 font-medium">Name</th>
+                      <th className="px-2 py-2 font-medium">Email</th>
+                      <th className="px-2 py-2 font-medium">Role</th>
+                      <th className="px-2 py-2 font-medium">Joined</th>
+                      <th className="px-2 py-2 font-medium" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="animate-fade-in-up" style={stagger(i, 45)}>
+                        <td className="px-2 py-3">
+                          <Skeleton className="h-3.5 w-24" />
+                        </td>
+                        <td className="px-2 py-3">
+                          <Skeleton className="h-3.5 w-36" />
+                        </td>
+                        <td className="px-2 py-3">
+                          <Skeleton className="h-5 w-14" />
+                        </td>
+                        <td className="px-2 py-3">
+                          <Skeleton className="h-3.5 w-20" />
+                        </td>
+                        <td className="px-2 py-3 text-right">
+                          <Skeleton className="ml-auto h-8 w-20" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -157,8 +211,8 @@ function AdminContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {users.map((u) => (
-                      <tr key={u.uid}>
+                    {users.map((u, i) => (
+                      <tr key={u.uid} className="animate-fade-in-up" style={stagger(i, 35)}>
                         <td className="px-2 py-2 text-text">{u.display_name || "—"}</td>
                         <td className="px-2 py-2 text-neutral-600">{u.email}</td>
                         <td className="px-2 py-2">

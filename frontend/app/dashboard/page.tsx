@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
@@ -12,10 +12,17 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { StatusBadge, Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import { Sparkline } from "@/components/ui/charts";
+import { Skeleton, SkeletonStatGrid, SkeletonTable, SkeletonCard } from "@/components/ui/Skeleton";
+
+/** Cascades a list's fade-in-up entrance one item after another instead of
+ * all at once — every list on this page (recent jobs, model registry,
+ * activity feed) uses this same small stagger for a consistent feel. */
+function stagger(index: number, stepMs = 40): CSSProperties {
+  return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
+}
 
 type Tab = "overview" | "models" | "activity";
 
@@ -136,13 +143,27 @@ function DashboardContent() {
         )}
 
         {jobs === null ? (
-          <div className="flex justify-center py-16">
-            <Spinner label="Loading your dashboard..." />
+          <div className="space-y-6">
+            <SkeletonStatGrid count={4} />
+            <div className="grid gap-6 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader title="Recent jobs" description="Your most recently submitted video-processing jobs." />
+                <SkeletonTable rows={6} cols={2} />
+              </Card>
+              <Card>
+                <CardHeader title="Quick actions" />
+                <div className="space-y-3">
+                  <Skeleton className="h-11 w-full" />
+                  <Skeleton className="h-11 w-full" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              </Card>
+            </div>
           </div>
         ) : tab === "overview" ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Card className="p-6">
+              <Card className="animate-fade-in-up p-6">
                 <p className="text-sm font-medium text-neutral-500">Total jobs</p>
                 <p className="mt-2 font-mono text-4xl font-semibold text-text">{jobs.length}</p>
                 {jobsPerDay.some((n) => n > 0) && (
@@ -151,9 +172,9 @@ function DashboardContent() {
                   </div>
                 )}
               </Card>
-              <StatCard label="Completed" value={done} />
-              <StatCard label="In progress" value={active} />
-              <StatCard label="Trained / registered models" value={models?.length ?? "—"} />
+              <StatCard label="Completed" value={done} style={stagger(1, 60)} />
+              <StatCard label="In progress" value={active} style={stagger(2, 60)} />
+              <StatCard label="Trained / registered models" value={models?.length ?? "—"} style={stagger(3, 60)} />
             </div>
 
             <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -179,8 +200,12 @@ function DashboardContent() {
                   />
                 ) : (
                   <ul className="divide-y divide-neutral-100">
-                    {jobs.slice(0, 8).map((job) => (
-                      <li key={job.job_id} className="flex items-center justify-between gap-4 py-3">
+                    {jobs.slice(0, 8).map((job, i) => (
+                      <li
+                        key={job.job_id}
+                        className="animate-fade-in-up flex items-center justify-between gap-4 py-3"
+                        style={stagger(i)}
+                      >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-text">{job.original_filename}</p>
                           <p className="text-sm text-neutral-500">
@@ -194,7 +219,7 @@ function DashboardContent() {
                 )}
               </Card>
 
-              <Card>
+              <Card className="animate-fade-in-up" style={stagger(1, 80)}>
                 <CardHeader title="Quick actions" />
                 <div className="space-y-2">
                   <Link href="/train" className={buttonClasses({ variant: "outline", className: "w-full justify-start" })}>
@@ -228,7 +253,13 @@ function DashboardContent() {
               description="Every model you've trained. Activate the one new video jobs should use by default."
             />
             {models === null ? (
-              <Spinner label="Loading models..." />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-fade-in-up" style={stagger(i, 50)}>
+                    <SkeletonCard />
+                  </div>
+                ))}
+              </div>
             ) : models.length === 0 ? (
               <EmptyState
                 title="No models yet"
@@ -241,8 +272,12 @@ function DashboardContent() {
               />
             ) : (
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {models.map((m) => (
-                  <li key={m.model_id} className="rounded-lg border border-neutral-200 p-4">
+                {models.map((m, i) => (
+                  <li
+                    key={m.model_id}
+                    className="hover-lift animate-fade-in-up rounded-lg border border-neutral-200 p-4"
+                    style={stagger(i, 50)}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-text">{m.name}</p>
@@ -283,13 +318,17 @@ function DashboardContent() {
           <Card>
             <CardHeader title="Activity" description="Every video and training job, merged and time-ordered." />
             {activityFeed === null ? (
-              <Spinner label="Loading activity..." />
+              <SkeletonTable rows={8} cols={3} />
             ) : activityFeed.length === 0 ? (
               <EmptyState title="No activity yet" description="Train a model or process a video to see it here." />
             ) : (
               <ul className="divide-y divide-neutral-100">
-                {activityFeed.map((item) => (
-                  <li key={`${item.kind}-${item.id}`} className="flex items-center justify-between gap-4 py-3">
+                {activityFeed.map((item, i) => (
+                  <li
+                    key={`${item.kind}-${item.id}`}
+                    className="animate-fade-in-up flex items-center justify-between gap-4 py-3"
+                    style={stagger(i, 30)}
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <Badge tone={item.kind === "video" ? "primary" : "secondary"}>
                         {item.kind === "video" ? "Video" : "Training"}

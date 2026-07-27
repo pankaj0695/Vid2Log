@@ -14,9 +14,9 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MetricsReport } from "@/components/train/MetricsReport";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -121,10 +121,31 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
         </Alert>
       )}
 
-      {!error && !model && <Spinner label="Loading model..." />}
+      {!error && !model && (
+        <div className="animate-fade-in-up">
+          <div className="mb-8 flex items-center justify-between gap-4">
+            <div>
+              <Skeleton className="h-3.5 w-16" />
+              <Skeleton className="mt-2 h-8 w-56" />
+              <Skeleton className="mt-2 h-3.5 w-40" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+            <div className="space-y-6">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          </div>
+        </div>
+      )}
 
       {model && (
-        <>
+        <div className="animate-fade-in-up">
           <PageHeader
             eyebrow="Model"
             title={model.name}
@@ -259,7 +280,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
       </Container>
 

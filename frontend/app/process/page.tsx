@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { GoogleDriveImportButton } from "@/components/GoogleDriveImportButton";
@@ -14,10 +14,14 @@ import { Input, Label, Select } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { StatusBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Skeleton, SkeletonTable } from "@/components/ui/Skeleton";
+
+function stagger(index: number, stepMs = 45): CSSProperties {
+  return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
+}
 
 type Tab = "new" | "logs" | "history";
 
@@ -414,7 +418,19 @@ function ProcessContent() {
             )}
 
             {jobs === null ? (
-              <Spinner label="Loading logs..." />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="animate-fade-in-up p-4" style={stagger(i, 60)}>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                      <div className="min-w-0 flex-1">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="mt-2 h-3 w-1/4" />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             ) : doneJobs.length === 0 ? (
               <EmptyState
                 title="No logs yet"
@@ -422,8 +438,8 @@ function ProcessContent() {
               />
             ) : (
               <div className="space-y-3">
-                {doneJobs.map((job) => (
-                  <Card key={job.job_id} className="p-4">
+                {doneJobs.map((job, i) => (
+                  <Card key={job.job_id} className="animate-fade-in-up p-4" style={stagger(i, 35)}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         <input
@@ -487,7 +503,9 @@ function ProcessContent() {
                     {expandedJobId === job.job_id && (
                       <div className="mt-4 border-t border-neutral-100 pt-4">
                         {logsLoading ? (
-                          <Spinner label="Loading scenes..." />
+                          <div className="rounded-lg border border-neutral-200">
+                            <SkeletonTable rows={6} cols={5} />
+                          </div>
                         ) : logData ? (
                           <div className="max-h-80 overflow-auto rounded-lg border border-neutral-200">
                             <table className="w-full text-left text-sm">
@@ -540,13 +558,25 @@ function ProcessContent() {
             )}
 
             {jobs === null ? (
-              <Spinner label="Loading jobs..." />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="animate-fade-in-up p-4" style={stagger(i, 60)}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="mt-2 h-3 w-1/4" />
+                      </div>
+                      <Skeleton className="h-6 w-20 shrink-0" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
             ) : jobs.length === 0 ? (
               <EmptyState title="No jobs yet" description="Upload a video in the New job tab to get started." />
             ) : (
               <div className="space-y-3">
-                {jobs.map((job) => (
-                  <Card key={job.job_id} className="p-4">
+                {jobs.map((job, i) => (
+                  <Card key={job.job_id} className="animate-fade-in-up p-4" style={stagger(i, 35)}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-text">{displayName(job)}</p>
