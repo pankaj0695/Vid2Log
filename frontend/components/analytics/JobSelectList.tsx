@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { JobOut } from "@/lib/types";
+import { logDisplayName } from "@/lib/format";
 
 /** Checkbox list of processed videos, shared by every analytics tab that
  * lets the user pick a subset. Beyond plain click-to-toggle, shift+click
@@ -89,7 +90,9 @@ export function JobSelectList({
                 onChange={(e) => handleChange(job.job_id, index, e.target.checked)}
                 className="h-4 w-4"
               />
-              <span className="truncate text-sm text-text">{job.original_filename}</span>
+              <span className="truncate text-sm text-text">
+                {logDisplayName(job.display_name || job.original_filename)}
+              </span>
             </label>
           </li>
         );

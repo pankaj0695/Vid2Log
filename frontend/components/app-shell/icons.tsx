@@ -58,6 +58,31 @@ export function IconShield({ className }: IconProps) {
   );
 }
 
+export function IconBox({ className }: IconProps) {
+  return (
+    <svg {...common} className={className}>
+      <path
+        d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M4 7.5L12 12l8-4.5M12 12v9" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconList({ className }: IconProps) {
+  return (
+    <svg {...common} className={className}>
+      <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="3.5" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="3.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="3.5" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function IconChevronDown({ className }: IconProps) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>

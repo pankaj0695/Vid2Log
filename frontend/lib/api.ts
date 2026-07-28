@@ -120,6 +120,15 @@ export const api = {
       });
       return URL.createObjectURL(blob);
     },
+    // FormData body — `request()` already skips setting a Content-Type
+    // header for FormData so the browser can fill in the multipart
+    // boundary itself; no video pipeline involved, so this returns
+    // straight away with a "done" job, not a "queued" one to poll.
+    importCsv: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return request<JobOut>("/logs/import", { method: "POST", body: formData });
+    },
   },
 
   models: {

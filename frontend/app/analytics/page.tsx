@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell/AppShell";
 import { api } from "@/lib/api";
 import { downloadCsv, downloadMultiSectionCsv } from "@/lib/csv";
 import { downloadOverviewPdf } from "@/lib/pdfReport";
+import { logDisplayName } from "@/lib/format";
 import type {
   DSMPattern,
   DSMTestType,
@@ -138,15 +139,19 @@ function AnalyticsContent() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
+  async function loadJobs() {
+    try {
+      const list = await api.jobs.list(100);
+      setJobs(list.filter((j) => j.status === "done"));
+      setJobsError(null);
+    } catch (err) {
+      setJobsError(err instanceof Error ? err.message : "Failed to load jobs.");
+    }
+  }
+
   useEffect(() => {
-    api.jobs
-      .list(100)
-      .then((list) => setJobs(list.filter((j) => j.status === "done")))
-      .catch((err) =>
-        setJobsError(
-          err instanceof Error ? err.message : "Failed to load jobs.",
-        ),
-      );
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadJobs();
   }, []);
 
   const doneJobs = useMemo(() => jobs ?? [], [jobs]);
@@ -175,7 +180,7 @@ function AnalyticsContent() {
 
       logs.forEach((log, i) => {
         perVideo.push({
-          label: selectedJobs[i].original_filename,
+          label: logDisplayName(selectedJobs[i].display_name || selectedJobs[i].original_filename),
           value: log.scenes.length,
         });
         for (const scene of log.scenes) {
@@ -466,16 +471,19 @@ function AnalyticsContent() {
 
   const timelineEntries = useMemo(() => {
     if (!timelineLogs) return null;
-    return timelineLogs.map((log) => ({
-      jobId: log.job_id,
-      label: log.original_filename,
-      segments: log.scenes.map((s) => ({
-        label: s.class,
-        startSec: parseHms(s.start_time),
-        endSec: parseHms(s.end_time),
-      })),
-    }));
-  }, [timelineLogs]);
+    return timelineLogs.map((log) => {
+      const job = doneJobs.find((j) => j.job_id === log.job_id);
+      return {
+        jobId: log.job_id,
+        label: logDisplayName(job?.display_name || log.original_filename),
+        segments: log.scenes.map((s) => ({
+          label: s.class,
+          startSec: parseHms(s.start_time),
+          endSec: parseHms(s.end_time),
+        })),
+      };
+    });
+  }, [timelineLogs, doneJobs]);
 
   return (
     <AppShell section="analytics" crumb="Analytics">
@@ -528,7 +536,7 @@ function AnalyticsContent() {
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader
-                title="Select videos"
+                title="Select logs"
                 description="Descriptive stats below are computed only across the videos you pick here."
               />
               <JobSelectList
@@ -705,7 +713,7 @@ function AnalyticsContent() {
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader
-                title="Select videos"
+                title="Select logs"
                 description="Frequent sub-sequences across the chosen videos."
               />
               <JobSelectList
@@ -1199,7 +1207,7 @@ function AnalyticsContent() {
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader
-                title="Select videos"
+                title="Select logs"
                 description="Pick one or more videos - each renders as its own timeline below, stacked vertically."
               />
               <JobSelectList

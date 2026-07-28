@@ -14,6 +14,7 @@ const APP_SHELL_PREFIXES = [
   "/analytics",
   "/admin",
   "/models",
+  "/video-logs",
 ];
 
 export function Footer() {

@@ -13,6 +13,8 @@ import {
   IconFilm,
   IconChartBar,
   IconShield,
+  IconBox,
+  IconList,
   IconSidebarToggle,
 } from "./icons";
 
@@ -20,6 +22,8 @@ export type SectionId =
   | "dashboard"
   | "train"
   | "process"
+  | "models"
+  | "video-logs"
   | "analytics"
   | "admin";
 
@@ -31,7 +35,9 @@ const NAV: {
 }[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: IconGrid },
   { id: "train", href: "/train", label: "Train", icon: IconSliders },
+  { id: "models", href: "/models", label: "Models", icon: IconBox },
   { id: "process", href: "/process", label: "Process video", icon: IconFilm },
+  { id: "video-logs", href: "/video-logs", label: "Video logs", icon: IconList },
   {
     id: "analytics",
     href: "/analytics",

@@ -1,12 +1,21 @@
 import csv
 import io
+import uuid
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
+from app.schemas import JobOut
 from app.services.firebase_service import get_current_user, get_db
 
 router = APIRouter(prefix="/logs", tags=["logs"])
+
+# Columns a hand-built/externally-produced log CSV must have to be imported
+# via POST /logs/import — matches get_log_csv's own export format exactly
+# (minus `source`, which is optional there too) so a round-tripped
+# export-then-reimport is always valid.
+REQUIRED_IMPORT_COLUMNS = {"start_time", "end_time", "duration", "class", "confidence"}
 
 
 def _get_owned_job(db, job_id: str, user: dict) -> dict:
@@ -57,6 +66,87 @@ def get_log_csv(job_id: str, user: dict = Depends(get_current_user)):
         iter([buffer.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import", response_model=JobOut)
+async def import_csv_log(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Creates a 'done' job/log directly from an uploaded CSV of scene rows,
+    for logs that already exist outside vid2log (produced by hand, exported
+    from elsewhere, etc.) rather than coming from video processing. Skips the
+    whole video pipeline entirely — no storage_path, no worker job, no
+    classifier call; the CSV's rows become the scenes as-is, same shape as
+    what get_log_csv above already exports, so export-then-reimport round-
+    trips cleanly."""
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")  # -sig tolerates a BOM from Excel-exported CSVs
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="File must be UTF-8 encoded text.")
+
+    reader = csv.DictReader(io.StringIO(text))
+    present_columns = set(reader.fieldnames or [])
+    missing_columns = sorted(REQUIRED_IMPORT_COLUMNS - present_columns)
+    if reader.fieldnames is None or missing_columns:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"CSV is missing required column{'s' if len(missing_columns) != 1 else ''}: "
+                f"{', '.join(missing_columns) or ', '.join(sorted(REQUIRED_IMPORT_COLUMNS))}. "
+                "Download the template for the exact format."
+            ),
+        )
+
+    scenes = []
+    for i, row in enumerate(reader, start=2):  # start=2: row 1 is the header
+        for col in REQUIRED_IMPORT_COLUMNS:
+            if not (row.get(col) or "").strip():
+                raise HTTPException(status_code=400, detail=f"Row {i}: '{col}' is empty.")
+        try:
+            confidence = float(row["confidence"])
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Row {i}: 'confidence' must be a number.")
+        scenes.append(
+            {
+                "start_time": row["start_time"].strip(),
+                "end_time": row["end_time"].strip(),
+                "duration": row["duration"].strip(),
+                "class": row["class"].strip(),
+                "confidence": confidence,
+                "source": (row.get("source") or "csv_import").strip(),
+            }
+        )
+
+    if not scenes:
+        raise HTTPException(status_code=400, detail="CSV has no data rows.")
+
+    db = get_db()
+    job_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    original_filename = file.filename or "imported_log.csv"
+
+    doc = {
+        "job_id": job_id,
+        "status": "done",
+        "owner_uid": user["uid"],
+        "original_filename": original_filename,
+        "resource_type": "csv_import",
+        "scene_count": len(scenes),
+        "scenes": scenes,
+        "created_at": now,
+        "started_at": now,
+        "completed_at": now,
+    }
+    db.collection("jobs").document(job_id).set(doc)
+
+    return JobOut(
+        job_id=job_id,
+        status="done",
+        original_filename=original_filename,
+        scene_count=len(scenes),
+        created_at=now,
+        started_at=now,
+        completed_at=now,
     )
 
 

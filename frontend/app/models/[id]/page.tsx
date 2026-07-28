@@ -101,7 +101,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
       await api.models.remove(modelId);
       // Same destination as the "Back to models" link above — this model no
       // longer exists to have its own detail page.
-      router.push("/dashboard");
+      router.push("/models");
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Failed to delete model.");
       setDeleteBusy(false);
@@ -109,9 +109,9 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
   }
 
   return (
-    <AppShell section="dashboard" crumb="Models">
+    <AppShell section="models" crumb="Models">
       <Container className="py-10">
-      <Link href="/dashboard" className="mb-4 inline-block text-sm font-medium text-primary hover:underline">
+      <Link href="/models" className="mb-4 inline-block text-sm font-medium text-primary hover:underline">
         ← Back to models
       </Link>
 

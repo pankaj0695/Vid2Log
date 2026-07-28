@@ -32,6 +32,20 @@ export function downloadCsv(filename: string, headers: string[], rows: (string |
   triggerDownload(filename, toCsvLines(headers, rows).join("\n"), "text/csv;charset=utf-8;");
 }
 
+/** Reads just the header row of a CSV file's text and returns which of
+ * `requiredColumns` are missing (case-insensitive, so "Start_Time" still
+ * matches "start_time") — empty array means every required column is
+ * present. Used to reject an obviously-wrong CSV client-side, before ever
+ * uploading it, so the person finds out exactly which column(s) to fix
+ * instead of a generic "import failed" after a round trip. */
+export function findMissingCsvColumns(csvText: string, requiredColumns: string[]): string[] {
+  const headerLine = csvText.split(/\r\n|\r|\n/, 1)[0] ?? "";
+  const present = new Set(
+    headerLine.split(",").map((cell) => cell.trim().replace(/^["']|["']$/g, "").toLowerCase())
+  );
+  return requiredColumns.filter((col) => !present.has(col.toLowerCase()));
+}
+
 /** For reports made of several distinct tables — pass an ordered list of
  * { title, headers, rows } and this lays them out as one CSV with a title
  * line and a blank line between each section. */
