@@ -10,7 +10,7 @@ export interface OverviewReportData {
   totalScenes: number;
   totalDurationLabel: string;
   avgConfidencePct: string;
-  classRows: { label: string; count: number; totalSec: number; avgDurationSec: number; avgConfidence: number }[];
+  actionRows: { label: string; count: number; totalSec: number; avgDurationSec: number; avgConfidence: number }[];
   perVideo: { label: string; value: number }[];
   sourceCounts: { label: string; value: number }[];
   formatSeconds: (seconds: number) => string;
@@ -63,12 +63,12 @@ export function downloadOverviewPdf(data: OverviewReportData) {
   });
   y = nextY(doc);
 
-  y = sectionHeading(doc, "Per-class summary", y);
+  y = sectionHeading(doc, "Per-action summary", y);
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN_X, right: MARGIN_X },
-    head: [["Class", "Scenes", "Total time", "Avg. scene length", "Avg. confidence"]],
-    body: data.classRows.map((r) => [
+    head: [["Action", "Scenes", "Total time", "Avg. scene length", "Avg. confidence"]],
+    body: data.actionRows.map((r) => [
       r.label,
       String(r.count),
       data.formatSeconds(r.totalSec),

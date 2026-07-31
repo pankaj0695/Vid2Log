@@ -34,7 +34,7 @@ import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 
 type Tab = "overview" | "spm" | "dsm" | "timeline";
 
-interface ClassAgg {
+interface ActionAgg {
   count: number;
   totalSec: number;
   confSum: number;
@@ -45,7 +45,7 @@ interface OverviewResult {
   totalScenes: number;
   totalDurationSec: number;
   avgConfidence: number;
-  classAgg: Record<string, ClassAgg>;
+  actionAgg: Record<string, ActionAgg>;
   sourceCounts: Record<string, number>;
   perVideo: { label: string; value: number }[];
 }
@@ -171,7 +171,7 @@ function AnalyticsContent() {
         selectedJobs.map((j) => api.logs.get(j.job_id)),
       );
 
-      const classAgg: Record<string, ClassAgg> = {};
+      const actionAgg: Record<string, ActionAgg> = {};
       const sourceCounts: Record<string, number> = {};
       const perVideo: { label: string; value: number }[] = [];
       let totalScenes = 0;
@@ -185,7 +185,7 @@ function AnalyticsContent() {
         });
         for (const scene of log.scenes) {
           const sec = parseHms(scene.duration);
-          const agg = classAgg[scene.class] ?? {
+          const agg = actionAgg[scene.action] ?? {
             count: 0,
             totalSec: 0,
             confSum: 0,
@@ -193,7 +193,7 @@ function AnalyticsContent() {
           agg.count += 1;
           agg.totalSec += sec;
           agg.confSum += scene.confidence;
-          classAgg[scene.class] = agg;
+          actionAgg[scene.action] = agg;
 
           const src = scene.source ?? "cnn";
           sourceCounts[src] = (sourceCounts[src] ?? 0) + 1;
@@ -209,7 +209,7 @@ function AnalyticsContent() {
         totalScenes,
         totalDurationSec,
         avgConfidence: totalScenes ? confSum / totalScenes : 0,
-        classAgg,
+        actionAgg,
         sourceCounts,
         perVideo,
       });
@@ -222,9 +222,9 @@ function AnalyticsContent() {
     }
   }
 
-  const classRows = useMemo(() => {
+  const actionRows = useMemo(() => {
     if (!overviewResult) return [];
-    return Object.entries(overviewResult.classAgg)
+    return Object.entries(overviewResult.actionAgg)
       .map(([label, agg]) => ({
         label,
         count: agg.count,
@@ -256,15 +256,15 @@ function AnalyticsContent() {
         ],
       },
       {
-        title: "Per-class summary",
+        title: "Per-action summary",
         headers: [
-          "Class",
+          "Action",
           "Scenes",
           "Total time (s)",
           "Avg. scene length (s)",
           "Avg. confidence",
         ],
-        rows: classRows.map((r) => [
+        rows: actionRows.map((r) => [
           r.label,
           r.count,
           r.totalSec.toFixed(1),
@@ -295,7 +295,7 @@ function AnalyticsContent() {
       totalScenes: overviewResult.totalScenes,
       totalDurationLabel: formatSeconds(overviewResult.totalDurationSec),
       avgConfidencePct: `${(overviewResult.avgConfidence * 100).toFixed(1)}%`,
-      classRows,
+      actionRows,
       perVideo: overviewResult.perVideo,
       sourceCounts: Object.entries(overviewResult.sourceCounts).map(
         ([key, value]) => ({
@@ -477,7 +477,7 @@ function AnalyticsContent() {
         jobId: log.job_id,
         label: logDisplayName(job?.display_name || log.original_filename),
         segments: log.scenes.map((s) => ({
-          label: s.class,
+          label: s.action,
           startSec: parseHms(s.start_time),
           endSec: parseHms(s.end_time),
         })),
@@ -491,7 +491,7 @@ function AnalyticsContent() {
         <PageHeader
           eyebrow="Analytics"
           title="Pattern analysis"
-          description="See what your processed videos actually contain - class distribution, common workflows, what differs between groups, and one video at a time."
+          description="See what your processed videos actually contain - action distribution, common workflows, what differs between groups, and one video at a time."
         />
 
         <Tabs
@@ -611,14 +611,14 @@ function AnalyticsContent() {
 
                 <Card className="lg:col-span-3">
                   <CardHeader
-                    title="Per-class summary"
-                    description="Sorted by total time spent — the classes that actually dominated these sessions, not just the ones with the most short-lived scenes."
+                    title="Per-action summary"
+                    description="Sorted by total time spent — the actions that actually dominated these sessions, not just the ones with the most short-lived scenes."
                   />
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-neutral-50 text-neutral-500">
                         <tr>
-                          <th className="px-3 py-2 font-medium">Class</th>
+                          <th className="px-3 py-2 font-medium">Action</th>
                           <th className="px-3 py-2 font-medium">Scenes</th>
                           <th className="px-3 py-2 font-medium">Total time</th>
                           <th className="px-3 py-2 font-medium">
@@ -630,7 +630,7 @@ function AnalyticsContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-100">
-                        {classRows.map((r) => (
+                        {actionRows.map((r) => (
                           <tr key={r.label}>
                             <td className="px-3 py-2 font-medium text-text">
                               {r.label}
@@ -654,11 +654,11 @@ function AnalyticsContent() {
 
                 <Card className="lg:col-span-3">
                   <CardHeader
-                    title="Class distribution"
-                    description="Scene count per class."
+                    title="Action distribution"
+                    description="Scene count per action."
                   />
                   <BarChart
-                    data={classRows.map((r) => ({
+                    data={actionRows.map((r) => ({
                       label: r.label,
                       value: r.count,
                     }))}
@@ -667,11 +667,11 @@ function AnalyticsContent() {
 
                 <Card className="lg:col-span-3">
                   <CardHeader
-                    title="Time spent per class"
-                    description="Minutes of video attributed to each class."
+                    title="Time spent per action"
+                    description="Minutes of video attributed to each action."
                   />
                   <BarChart
-                    data={classRows.map((r) => ({
+                    data={actionRows.map((r) => ({
                       label: r.label,
                       value: Math.round((r.totalSec / 60) * 10) / 10,
                     }))}
@@ -681,7 +681,7 @@ function AnalyticsContent() {
                 <Card>
                   <CardHeader
                     title="Classification source"
-                    description="How each scene's class was decided — the CNN alone, a keyword rule, or CNN+OCR fusion."
+                    description="How each scene's action was decided — the CNN alone, a keyword rule, or CNN+OCR fusion."
                   />
                   <DonutChart
                     data={Object.entries(overviewResult.sourceCounts).map(

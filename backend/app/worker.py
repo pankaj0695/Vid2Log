@@ -78,7 +78,7 @@ from app.services import firebase_service, gcs_service
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
 
-QUEUES = ["video_processing", "training"]
+QUEUES = ["video_processing", "training", "action_discovery"]
 
 # See the big comment above. SimpleWorker runs each job in THIS process
 # instead of forking a work-horse child for it — the tradeoff is that a

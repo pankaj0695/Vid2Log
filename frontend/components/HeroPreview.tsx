@@ -66,7 +66,7 @@ function TrainScene({ visibleClasses, progress }: { visibleClasses: number; prog
     <div className="animate-scene-in p-5">
       <div className="mb-4 flex items-center justify-between">
         <SceneBadge label="TRAINING" />
-        <span className="text-xs text-neutral-500">3 classes</span>
+        <span className="text-xs text-neutral-500">3 actions</span>
       </div>
 
       <div className="space-y-2">

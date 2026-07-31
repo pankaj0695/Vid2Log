@@ -27,6 +27,7 @@ const APP_SHELL_PREFIXES = [
   "/admin",
   "/models",
   "/video-logs",
+  "/create-actions",
 ];
 
 function initials(name: string | null, email: string | null): string {

@@ -298,12 +298,17 @@ def _merge_short_scenes(scenes: list, min_duration_s: float = MIN_SCENE_DURATION
 
 
 def _scenes_to_rows(scenes: list) -> list:
+    # Output key is "action" (not "class") — this is the shape that actually
+    # gets persisted to Firestore and shown to the user (JSON, CSV export,
+    # analytics), so it uses the app's user-facing terminology. The internal
+    # `scenes` list above stays keyed by "class" — that's this file's own
+    # implementation detail, never serialized as-is.
     return [
         {
             "start_time": format_timedelta(s["start"]),
             "end_time": format_timedelta(s["end"]),
             "duration": format_timedelta(s["duration"]),
-            "class": s["class"],
+            "action": s["class"],
             "confidence": s["confidence"],
             "source": s.get("source", "cnn"),
         }

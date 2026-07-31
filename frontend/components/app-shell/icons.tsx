@@ -83,6 +83,24 @@ export function IconList({ className }: IconProps) {
   );
 }
 
+// "Discovered clusters" glyph — three grouped dots orbiting a center point,
+// standing in for "auto-discover classes from a video" without needing a
+// literal clapperboard-plus-magic-wand icon.
+export function IconLayers({ className }: IconProps) {
+  return (
+    <svg {...common} className={className}>
+      <path
+        d="M12 3l9 5-9 5-9-5 9-5z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M3 13l9 5 9-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 18l9 5 9-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconChevronDown({ className }: IconProps) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>

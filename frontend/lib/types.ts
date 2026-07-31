@@ -30,7 +30,7 @@ export interface SceneRow {
   start_time: string;
   end_time: string;
   duration: string;
-  class: string;
+  action: string;
   confidence: number;
   source?: "cnn" | "keyword_rule" | "fusion" | "cnn_per_class_override";
 }
@@ -161,6 +161,72 @@ export interface DSMPattern {
   isupport_left_mean: number | null;
   isupport_right_mean: number | null;
   group: "left" | "right";
+}
+
+// ── Action discovery ("Create actions") ─────────────────────────────────────
+
+export type ActionDiscoveryStatus = "queued" | "processing" | "done" | "failed" | "cancelled";
+
+export interface ActionProgress {
+  stage: string; // starting | sampling | embedding | clustering | uploading_previews
+  detail: string | null;
+}
+
+export interface DiscoveredCluster {
+  id: string;
+  name: string; // "Action 1", "Action 2", ... — no auto-naming model involved
+  frame_count: number;
+}
+
+export interface ActionDiscoveryJobOut {
+  job_id: string;
+  status: ActionDiscoveryStatus;
+  original_filename: string;
+  fps: number;
+  error: string | null;
+  progress: ActionProgress | null;
+  clusters: DiscoveredCluster[] | null; // populated once status === "done"
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+// Exactly one of (cluster_id + frame_id) or storage_path must be set.
+export interface SaveActionImageRef {
+  cluster_id?: string | null;
+  frame_id?: string | null;
+  storage_path?: string | null;
+}
+
+export interface SaveActionClass {
+  name: string;
+  images: SaveActionImageRef[];
+}
+
+export interface ActionDatasetClassOut {
+  name: string;
+  image_count: number;
+}
+
+export interface ActionDatasetOut {
+  dataset_id: string;
+  name: string;
+  source_video_filename: string | null;
+  classes: ActionDatasetClassOut[];
+  total_images: number;
+  created_at: string | null;
+}
+
+// Exactly one of (class_index + image_index) or storage_path must be set.
+export interface UpdateActionImageRef {
+  class_index?: number | null;
+  image_index?: number | null;
+  storage_path?: string | null;
+}
+
+export interface UpdateActionClass {
+  name: string;
+  images: UpdateActionImageRef[];
 }
 
 export interface AdminStats {

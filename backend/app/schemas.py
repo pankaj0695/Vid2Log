@@ -95,10 +95,11 @@ class SceneRow(BaseModel):
     start_time: str
     end_time: str
     duration: str
-    class_name: str = Field(alias="class")
+    # "action" (see video_pipeline.py::_scenes_to_rows) — "action" isn't a
+    # Python reserved word the way "class" was, so no Field(alias=...)/
+    # populate_by_name dance is needed here anymore.
+    action: str
     confidence: float
-
-    model_config = {"populate_by_name": True}
 
 
 # ── Models (registry) ───────────────────────────────────────────────────────
@@ -218,6 +219,127 @@ class TrainJobOut(BaseModel):
     batch_size: Optional[int] = None
     learning_rate: Optional[float] = None
     split: Optional[SplitRatios] = None
+
+
+# ── Action discovery ("Create actions" — auto-discover training classes
+#    from a demo video, see app/services/action_discovery_pipeline.py) ──────
+
+class ActionDiscoverRequest(BaseModel):
+    """Sent after the frontend has already uploaded the video directly to
+    Cloud Storage via a signed URL (kind="video" — same temporary-upload
+    flow as Process video). fps/min_cluster_size mirror the two knobs
+    called out in Vid2Log_AutoDiscover_Classes.ipynb's own markdown as the
+    ones actually worth tuning per video."""
+    storage_path: str
+    original_filename: str
+    fps: int = Field(default=2, ge=1, le=30)
+    min_cluster_size: int = Field(default=5, ge=2, le=50)
+
+
+class ActionProgress(BaseModel):
+    stage: str  # starting | sampling | embedding | clustering | uploading_previews
+    detail: Optional[str] = None
+
+
+class DiscoveredCluster(BaseModel):
+    """One discovered cluster's REVIEW-time summary — no image bytes here;
+    the frontend fetches each preview frame individually via
+    GET /actions/discover/{job_id}/frames/{cluster_id}/{frame_id}, for
+    frame_id in range(frame_count)."""
+    id: str
+    name: str  # "Action 1", "Action 2", ... — no auto-naming model involved
+    frame_count: int
+
+
+class ActionDiscoveryJobOut(BaseModel):
+    job_id: str
+    status: str  # queued | processing | done | failed | cancelled
+    original_filename: str
+    fps: int
+    error: Optional[str] = None
+    progress: Optional[ActionProgress] = None
+    clusters: Optional[List[DiscoveredCluster]] = None  # populated once status == "done"
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class SaveActionImageRef(BaseModel):
+    """One image going into a saved class — exactly ONE of the two shapes
+    below, validated in routers/actions.py:
+      - cluster_id + frame_id: a preview frame already sitting in this
+        job's OWN temp Cloud Storage prefix (from a discovered cluster,
+        possibly after the frontend merged 2+ clusters together).
+      - storage_path: a freshly-uploaded image for a manually-added action,
+        uploaded the exact same way a training image is (POST
+        /uploads/signed-url with kind="training-image") — this path gets
+        copied into permanent storage and the temp upload deleted, same as
+        every other use of that upload kind."""
+    cluster_id: Optional[str] = None
+    frame_id: Optional[str] = None
+    storage_path: Optional[str] = None
+
+
+class SaveActionClass(BaseModel):
+    name: str
+    images: List[SaveActionImageRef]
+
+
+class SaveActionDatasetRequest(BaseModel):
+    """The FINAL reviewed state — whatever renames/merges/adds/deletes the
+    user made client-side, flattened into one request. Nothing is written
+    to permanent storage until this call succeeds."""
+    name: str
+    classes: List[SaveActionClass]
+
+
+class ActionDatasetClassOut(BaseModel):
+    name: str
+    image_count: int
+
+
+class ActionDatasetOut(BaseModel):
+    dataset_id: str
+    name: str
+    source_video_filename: Optional[str] = None
+    classes: List[ActionDatasetClassOut]
+    total_images: int
+    created_at: Optional[str] = None
+
+
+class CopyForTrainingRequest(BaseModel):
+    """Used by the Train page's "Import from saved dataset" option — makes
+    the caller its OWN disposable copies of the requested classes' images
+    under training-uploads/, so training_pipeline.py's post-success
+    deletion never touches the permanent dataset. None -> copy every
+    class in the dataset."""
+    class_names: Optional[List[str]] = None
+
+
+class UpdateActionImageRef(BaseModel):
+    """One image going into a re-saved (edited) dataset — exactly ONE of the
+    two shapes below, validated in routers/actions.py:
+      - class_index + image_index: an image the dataset ALREADY has, at its
+        current position (before this edit is applied).
+      - storage_path: a freshly-uploaded image for a newly-added action,
+        uploaded the same way as every other training-image upload."""
+    class_index: Optional[int] = None
+    image_index: Optional[int] = None
+    storage_path: Optional[str] = None
+
+
+class UpdateActionClass(BaseModel):
+    name: str
+    images: List[UpdateActionImageRef]
+
+
+class UpdateActionDatasetRequest(BaseModel):
+    """The FULL reviewed state of an existing dataset after edits (renames/
+    merges/adds/deletes) — same all-at-once shape as SaveActionDatasetRequest,
+    just sourced from the dataset's own stored images instead of a discovery
+    job's temp previews."""
+    name: str
+    classes: List[UpdateActionClass]
 
 
 # ── Analytics (SPM / DSM) ───────────────────────────────────────────────────

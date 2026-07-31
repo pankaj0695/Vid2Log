@@ -60,7 +60,7 @@ const features = [
   {
     title: "Real test-set metrics",
     description:
-      "A genuine train/val/test split with accuracy, per-class F1, and a confusion matrix - every time.",
+      "A genuine train/val/test split with accuracy, per-action F1, and a confusion matrix - every time.",
     icon: ICONS.chart,
     big: true,
   },
@@ -102,13 +102,13 @@ const steps = [
     number: "01",
     title: "Train",
     description:
-      "Add ~20–25 example images per class; get back real test-set accuracy, not just training accuracy.",
+      "Add ~20–25 example images per action; get back real test-set accuracy, not just training accuracy.",
   },
   {
     number: "02",
     title: "Process",
     description:
-      "Upload a recording and pick a model - scenes and classes are detected automatically.",
+      "Upload a recording and pick a model - scenes and actions are detected automatically.",
   },
   {
     number: "03",

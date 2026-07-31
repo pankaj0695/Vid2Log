@@ -189,7 +189,7 @@ function ModelsContent() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-text">{m.name}</p>
-                          <p className="text-sm text-neutral-500">{m.labels.length} classes</p>
+                          <p className="text-sm text-neutral-500">{m.labels.length} actions</p>
                         </div>
                         {m.is_active && <Badge tone="success">active</Badge>}
                       </div>

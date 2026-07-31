@@ -3,76 +3,23 @@ uvicorn[standard]
 pydantic-settings
 python-multipart
 python-dotenv
-
-# Firebase Admin (Auth verification + Firestore only — NOT Storage; the app
-# uses a standalone Cloud Storage bucket instead of Firebase Storage, since
-# Firebase Storage requires the whole project to be on the Blaze billing
-# plan while a plain GCS bucket does not).
 firebase-admin
-
-# Standalone Google Cloud Storage client, used directly by
-# app/services/gcs_service.py (google.cloud.storage.Client) — temporary
-# video/training-image storage + permanent model-artifact storage, and
-# issuing signed upload URLs for direct browser-to-GCS uploads. This
-# replaced Cloudinary, whose free plan capped raw-file uploads at 10MB.
-# Already a transitive dependency of firebase-admin, but listed explicitly
-# here since gcs_service.py imports it directly, not through firebase_admin.
 google-cloud-storage
-
-# Job queue
 redis
 rq
-
-# Video / image processing (mirrors streamlit_application/requirements.txt)
 opencv-python-headless
-# Pinned to a modern range with prebuilt wheels — left unpinned, pip's
-# resolver can wander into ancient pre-2011 releases (e.g. 1.7.8) that don't
-# build on current Python/macOS at all (`use_2to3 is invalid`).
 Pillow>=10.0,<13
 numpy
-
-# Model training + inference
-# Plain `tensorflow` on every platform, including Apple Silicon — since
-# TF 2.13, the standard PyPI package ships native macOS arm64 wheels, so the
-# separate `tensorflow-macos` package is no longer needed. Mixing
-# `tensorflow-macos` with `tensorflow-metal` is a common source of exactly
-# the crash this used to cause here: dlopen("libmetal_plugin.dylib")
-# failing with "Library not loaded: @rpath/_pywrap_tensorflow_internal.so"
-# because the two packages' internal binaries drift out of sync with each
-# other. `tensorflow-metal` alone (GPU/Neural Engine acceleration, optional)
-# is fine paired with plain `tensorflow` — pip resolves a compatible pair
-# together in one pass instead of two separately-versioned packages.
 tensorflow
 tensorflow-metal; sys_platform == "darwin" and platform_machine == "arm64"
 tf-keras
-
-# Metrics + data handling for the training pipeline
 pandas
 scikit-learn
 joblib
-
-# Two-sample statistical significance tests for Differential Sequence Mining
-# (app/routers/analytics.py's /dsm endpoint) — already a transitive
-# dependency of scikit-learn, listed explicitly since it's now imported
-# directly.
 scipy
-
-# Sequential / Differential Pattern Mining: hand-rolled in
-# app/services/sequence_mining.py — no external dependency (the `prefixspan`
-# PyPI package pulls in `extratools`, which hard-pins an ancient Pillow
-# version that fails to build on modern Python/macOS).
-
-# OCR + CNN/text fusion (app/ml/ocr.py, text_classifier.py, text_rules.py,
-# hybrid_classifier.py) — lets visually-similar UI screens be told apart by
-# their on-screen text, not just pixels.
-# pytesseract is a thin wrapper: the Tesseract binary itself must ALSO be
-# installed on the system (see README "Setup" — brew/apt, already handled in
-# the Dockerfile).
-pytesseract
 rapidfuzz
-
-# Generic HTTP downloads (app/utils.py::download_file — currently unused by
-# the video/training/model pipelines, which all read Cloud Storage blobs
-# directly via gcs_service.py instead, but kept for any future need to pull
-# a file from an arbitrary external URL).
 requests
+torch
+torchvision
+transformers
+hdbscan

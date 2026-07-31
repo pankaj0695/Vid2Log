@@ -23,7 +23,7 @@ function stagger(index: number, stepMs = 35): CSSProperties {
 // Mirrors backend/app/routers/logs.py::REQUIRED_IMPORT_COLUMNS — kept in
 // sync so a bad CSV gets rejected immediately client-side instead of only
 // after a round trip to the server.
-const REQUIRED_CSV_COLUMNS = ["start_time", "end_time", "duration", "class", "confidence"];
+const REQUIRED_CSV_COLUMNS = ["start_time", "end_time", "duration", "action", "confidence"];
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -114,7 +114,7 @@ function VideoLogsContent() {
   function downloadCsvTemplate() {
     downloadCsv(
       "vid2log_log_template.csv",
-      ["start_time", "end_time", "duration", "class", "confidence", "source"],
+      ["start_time", "end_time", "duration", "action", "confidence", "source"],
       [
         ["00:00:00", "00:00:05", "00:00:05", "Login Screen", "0.95", "manual"],
         ["00:00:05", "00:00:12", "00:00:07", "Dashboard", "0.91", "manual"],
@@ -368,7 +368,7 @@ function VideoLogsContent() {
                               <th className="px-3 py-2 font-medium">Start</th>
                               <th className="px-3 py-2 font-medium">End</th>
                               <th className="px-3 py-2 font-medium">Duration</th>
-                              <th className="px-3 py-2 font-medium">Class</th>
+                              <th className="px-3 py-2 font-medium">Action</th>
                               <th className="px-3 py-2 font-medium">Confidence</th>
                             </tr>
                           </thead>
@@ -378,7 +378,7 @@ function VideoLogsContent() {
                                 <td className="px-3 py-2">{scene.start_time}</td>
                                 <td className="px-3 py-2">{scene.end_time}</td>
                                 <td className="px-3 py-2">{scene.duration}</td>
-                                <td className="px-3 py-2 font-sans font-medium text-text">{scene.class}</td>
+                                <td className="px-3 py-2 font-sans font-medium text-text">{scene.action}</td>
                                 <td className="px-3 py-2">{(scene.confidence * 100).toFixed(1)}%</td>
                               </tr>
                             ))}

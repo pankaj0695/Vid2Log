@@ -30,7 +30,7 @@ def _job_sequence(db, job_id: str, user: dict) -> List[str]:
     if data.get("status") != "done":
         raise HTTPException(status_code=409, detail=f"Job {job_id} not done yet")
     # scenes are already in chronological order (start_time ascending)
-    return [row["class"] for row in data.get("scenes", [])]
+    return [row["action"] for row in data.get("scenes", [])]
 
 
 # Hard cap on how long a mined pattern is allowed to get. Without this, a

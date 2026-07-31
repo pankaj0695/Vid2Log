@@ -24,6 +24,18 @@ def cleanup_stale_videos(older_than_hours: int = 24, user: dict = Depends(requir
     return {"found": len(stale_paths), "deleted": len(deleted), "blob_paths": deleted}
 
 
+@router.post("/cleanup-stale-action-previews")
+def cleanup_stale_action_previews(older_than_hours: int = 24, user: dict = Depends(require_admin)):
+    """Same safety net as cleanup-stale-videos, for abandoned "Create actions"
+    discovery jobs — a user who generates a preview and never hits Save
+    leaves temp frames in Cloud Storage that nothing else will ever clean
+    up. Meant to be hit periodically by a scheduler, same as the endpoint
+    above."""
+    stale_paths = gcs_service.find_stale_action_discovery_blobs(older_than_hours=older_than_hours)
+    deleted = [path for path in stale_paths if gcs_service.delete_blob(path)]
+    return {"found": len(stale_paths), "deleted": len(deleted), "blob_paths": deleted}
+
+
 @router.get("/users", response_model=list[UserProfile])
 def list_users(limit: int = 200, user: dict = Depends(require_admin)):
     db = get_db()

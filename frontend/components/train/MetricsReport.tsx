@@ -32,7 +32,7 @@ export function MetricsReport({
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-500">
             <tr>
-              <th className="px-3 py-2 font-medium">Class</th>
+              <th className="px-3 py-2 font-medium">Action</th>
               <th className="px-3 py-2 font-medium">Precision</th>
               <th className="px-3 py-2 font-medium">Recall</th>
               <th className="px-3 py-2 font-medium">F1</th>

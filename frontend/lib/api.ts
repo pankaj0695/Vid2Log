@@ -5,12 +5,16 @@
 // never have to thread a token through manually.
 import { auth } from "./firebase";
 import type {
+  ActionDiscoveryJobOut,
+  ActionDatasetOut,
   AdminStats,
   DSMPattern,
   DSMTestType,
   JobOut,
   LogOut,
   ModelOut,
+  SaveActionClass,
+  UpdateActionClass,
   SPMPattern,
   SPMSortBy,
   SplitRatios,
@@ -166,6 +170,51 @@ export const api = {
     list: (limit = 50) => request<TrainJobOut[]>(`/train?limit=${limit}`),
     status: (trainingJobId: string) => request<TrainJobOut>(`/train/${trainingJobId}`),
     retry: (trainingJobId: string) => request<TrainJobOut>(`/train/${trainingJobId}/retry`, { method: "POST" }),
+  },
+
+  actions: {
+    discover: (payload: {
+      storage_path: string;
+      original_filename: string;
+      fps?: number;
+      min_cluster_size?: number;
+    }) => request<ActionDiscoveryJobOut>("/actions/discover", { method: "POST", body: JSON.stringify(payload) }),
+    listDiscoveryJobs: (limit = 20) => request<ActionDiscoveryJobOut[]>(`/actions/discover?limit=${limit}`),
+    getDiscoveryJob: (jobId: string) => request<ActionDiscoveryJobOut>(`/actions/discover/${jobId}`),
+    // Preview frames are proxied bytes behind auth, not a public URL — fetch
+    // via the authed request() helper and hand back a blob object URL the
+    // caller can drop straight into an <img src>, same pattern as
+    // logs.csvUrl() above. Caller is responsible for revoking it when done.
+    frameUrl: async (jobId: string, clusterId: string, frameId: string) => {
+      const blob = await request<Blob>(`/actions/discover/${jobId}/frames/${clusterId}/${frameId}`);
+      return URL.createObjectURL(blob);
+    },
+    cancelOrDeleteDiscoveryJob: (jobId: string) =>
+      request<{ status: string; note?: string }>(`/actions/discover/${jobId}`, { method: "DELETE" }),
+    saveDataset: (jobId: string, payload: { name: string; classes: SaveActionClass[] }) =>
+      request<ActionDatasetOut>(`/actions/discover/${jobId}/save`, { method: "POST", body: JSON.stringify(payload) }),
+
+    listDatasets: (limit = 100) => request<ActionDatasetOut[]>(`/actions/datasets?limit=${limit}`),
+    getDataset: (datasetId: string) => request<ActionDatasetOut>(`/actions/datasets/${datasetId}`),
+    // Re-saves an existing dataset after editing (rename/merge/add/delete
+    // actions or images) — same all-at-once shape as saveDataset above, but
+    // sourced from the dataset's own stored images instead of a discovery
+    // job's temp previews.
+    updateDataset: (datasetId: string, payload: { name: string; classes: UpdateActionClass[] }) =>
+      request<ActionDatasetOut>(`/actions/datasets/${datasetId}`, { method: "PUT", body: JSON.stringify(payload) }),
+    datasetImageUrl: async (datasetId: string, classIndex: number, imageIndex: number) => {
+      const blob = await request<Blob>(`/actions/datasets/${datasetId}/classes/${classIndex}/images/${imageIndex}`);
+      return URL.createObjectURL(blob);
+    },
+    deleteDataset: (datasetId: string) => request<{ status: string }>(`/actions/datasets/${datasetId}`, { method: "DELETE" }),
+    // Used by Train's "Import from saved dataset" option — makes fresh,
+    // disposable training-uploads/ copies of the requested classes'
+    // images. classNames omitted/undefined -> copy every class.
+    copyForTraining: (datasetId: string, classNames?: string[] | null) =>
+      request<Record<string, TrainingImageRef[]>>(`/actions/datasets/${datasetId}/copy-for-training`, {
+        method: "POST",
+        body: JSON.stringify({ class_names: classNames ?? null }),
+      }),
   },
 
   analytics: {

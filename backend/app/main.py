@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.routers import admin, analytics, jobs, logs, models, train, uploads, users
+from app.routers import actions, admin, analytics, jobs, logs, models, train, uploads, users
 from app.services import firebase_service, gcs_service, queue_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -73,6 +73,7 @@ app.include_router(jobs.router)
 app.include_router(logs.router)
 app.include_router(models.router)
 app.include_router(train.router)
+app.include_router(actions.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
 

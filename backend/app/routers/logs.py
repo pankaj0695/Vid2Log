@@ -15,7 +15,7 @@ router = APIRouter(prefix="/logs", tags=["logs"])
 # via POST /logs/import — matches get_log_csv's own export format exactly
 # (minus `source`, which is optional there too) so a round-tripped
 # export-then-reimport is always valid.
-REQUIRED_IMPORT_COLUMNS = {"start_time", "end_time", "duration", "class", "confidence"}
+REQUIRED_IMPORT_COLUMNS = {"start_time", "end_time", "duration", "action", "confidence"}
 
 
 def _get_owned_job(db, job_id: str, user: dict) -> dict:
@@ -53,7 +53,7 @@ def get_log_csv(job_id: str, user: dict = Depends(get_current_user)):
     # compatible if scene rows ever gain further debug fields.
     writer = csv.DictWriter(
         buffer,
-        fieldnames=["start_time", "end_time", "duration", "class", "confidence", "source"],
+        fieldnames=["start_time", "end_time", "duration", "action", "confidence", "source"],
         extrasaction="ignore",
     )
     writer.writeheader()
@@ -111,7 +111,7 @@ async def import_csv_log(file: UploadFile = File(...), user: dict = Depends(get_
                 "start_time": row["start_time"].strip(),
                 "end_time": row["end_time"].strip(),
                 "duration": row["duration"].strip(),
-                "class": row["class"].strip(),
+                "action": row["action"].strip(),
                 "confidence": confidence,
                 "source": (row.get("source") or "csv_import").strip(),
             }
@@ -163,7 +163,7 @@ def combine_logs(job_ids: list[str], user: dict = Depends(get_current_user)):
         if writer is None:
             writer = csv.DictWriter(
                 buffer,
-                fieldnames=["video_id", "start_time", "end_time", "duration", "class", "confidence", "source"],
+                fieldnames=["video_id", "start_time", "end_time", "duration", "action", "confidence", "source"],
                 extrasaction="ignore",
             )
             writer.writeheader()

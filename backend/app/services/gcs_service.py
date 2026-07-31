@@ -49,6 +49,22 @@ log = logging.getLogger(__name__)
 # timestamp with no manual tagging required.
 VIDEO_UPLOAD_PREFIX = "video-uploads/"
 
+# Where action_discovery_pipeline.py writes per-frame preview images WHILE a
+# discovery job is being reviewed — TEMPORARY, same lifecycle as
+# VIDEO_UPLOAD_PREFIX above. Nothing here survives past either
+# POST /actions/discover/{id}/save (which copies the kept frames out to
+# ACTION_DATASET_PREFIX below and then deletes the whole job's temp prefix)
+# or the stale-cleanup sweep below, whichever comes first.
+ACTION_DISCOVERY_TEMP_PREFIX = "action-discovery-temp/"
+
+# Where a SAVED action dataset's images live — PERMANENT, unlike every other
+# prefix in this module, until the user explicitly deletes that dataset (see
+# DELETE /actions/datasets/{id}). This is deliberately a durable image store,
+# not a staging area — the whole point of "Create actions" is a reusable
+# labeled dataset the user can come back to and train multiple models from,
+# not a one-shot temp file.
+ACTION_DATASET_PREFIX = "action-datasets/"
+
 _client: Optional[storage.Client] = None
 _bucket_obj = None
 
@@ -124,6 +140,65 @@ def upload_file(local_path: str, blob_path: str) -> dict:
     return {"path": blob_path}
 
 
+def upload_bytes(data: bytes, blob_path: str, content_type: str = "image/jpeg") -> dict:
+    """Upload raw bytes (e.g. one JPEG-encoded video frame) directly, without
+    a local file round-trip — used by action_discovery_pipeline.py, which
+    already has each kept frame as an in-memory array/buffer, not a file on
+    disk. Same "no public URL" contract as upload_file() above."""
+    blob = _bucket().blob(blob_path)
+    blob.upload_from_string(data, content_type=content_type)
+    return {"path": blob_path}
+
+
+def download_bytes(blob_path: str) -> bytes:
+    """Read a blob's raw bytes straight into memory — used to stream a
+    preview/dataset image back to the frontend (routers/actions.py) without
+    writing it to local disk first, and without ever handing out a public
+    URL for it (see the module docstring: everything is proxied through our
+    own service-account-credentialed client)."""
+    return _bucket().blob(blob_path).download_as_bytes()
+
+
+def copy_blob(src_blob_path: str, dst_blob_path: str) -> dict:
+    """Server-side copy — GCS moves the bytes between the two paths itself,
+    so this never round-trips the file through our backend. Used in two
+    places: (1) POST /actions/discover/{id}/save, promoting the kept preview
+    frames from ACTION_DISCOVERY_TEMP_PREFIX into permanent
+    ACTION_DATASET_PREFIX storage, and (2)
+    POST /actions/datasets/{id}/copy-for-training, handing the training
+    pipeline its own disposable copy of a permanent dataset's images so
+    training_pipeline.py's post-success deletion never touches the
+    original, permanent dataset."""
+    src_bucket = _bucket()
+    src_blob = src_bucket.blob(src_blob_path)
+    src_bucket.copy_blob(src_blob, src_bucket, new_name=dst_blob_path)
+    return {"path": dst_blob_path}
+
+
+def list_blob_names_with_prefix(prefix: str, max_results: Optional[int] = None) -> List[str]:
+    """Every blob name currently under `prefix` — used to enumerate a saved
+    action dataset's images (there's no per-image Firestore doc; the image
+    count alone plus this listing is enough to reconstruct what's there) and
+    as the basis for delete_blobs_with_prefix() below."""
+    return [b.name for b in _bucket().list_blobs(prefix=prefix, max_results=max_results)]
+
+
+def delete_blobs_with_prefix(prefix: str) -> int:
+    """Bulk-delete every blob under `prefix` — used to tear down a whole
+    discovery job's temp preview frames (whether abandoned or just-saved)
+    and to permanently delete a saved action dataset. Returns how many blobs
+    were actually removed. Refuses an empty/root prefix so a coding mistake
+    here can never wipe the entire bucket."""
+    if not prefix or prefix == "/":
+        raise ValueError("Refusing to bulk-delete with an empty/root prefix.")
+    names = list_blob_names_with_prefix(prefix)
+    deleted = 0
+    for name in names:
+        if delete_blob(name):
+            deleted += 1
+    return deleted
+
+
 def download_blob(blob_path: str, dest_path) -> Path:
     """Stream a blob down to local disk for processing (video frames, a
     training image, or a model file) — reads by blob path via our own
@@ -165,6 +240,22 @@ def find_stale_video_blobs(older_than_hours: int = 24, max_results: int = 500) -
     cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
     stale = []
     for blob in _bucket().list_blobs(prefix=VIDEO_UPLOAD_PREFIX, max_results=max_results):
+        if blob.time_created and blob.time_created < cutoff:
+            stale.append(blob.name)
+    return stale
+
+
+def find_stale_action_discovery_blobs(older_than_hours: int = 24, max_results: int = 2000) -> List[str]:
+    """Same safety net as find_stale_video_blobs, for ACTION_DISCOVERY_TEMP_PREFIX.
+    A discovery job's preview frames only ever leave this prefix two ways —
+    promoted to ACTION_DATASET_PREFIX by a successful Save, or bulk-deleted
+    when the job itself is cancelled/deleted (see routers/actions.py) — so
+    anything still sitting here after `older_than_hours` means the user
+    generated a preview and then just never came back to finish reviewing
+    it. Safe to sweep on the same schedule as stale videos."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
+    stale = []
+    for blob in _bucket().list_blobs(prefix=ACTION_DISCOVERY_TEMP_PREFIX, max_results=max_results):
         if blob.time_created and blob.time_created < cutoff:
             stale.append(blob.name)
     return stale

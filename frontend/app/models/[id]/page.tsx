@@ -149,7 +149,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
           <PageHeader
             eyebrow="Model"
             title={model.name}
-            description={`${model.labels.length} classes · created ${formatDate(model.created_at)}`}
+            description={`${model.labels.length} actions · created ${formatDate(model.created_at)}`}
             action={
               <div className="flex flex-wrap items-center gap-2">
                 {model.is_active ? (
@@ -231,7 +231,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
 
             <div className="space-y-6">
               <Card>
-                <CardHeader title="Classes" />
+                <CardHeader title="Actions" />
                 <ul className="flex flex-wrap gap-1.5">
                   {model.labels.map((label) => (
                     <Badge key={label} tone="neutral">
@@ -267,7 +267,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
 
               {model.keyword_rules && Object.keys(model.keyword_rules).length > 0 && (
                 <Card>
-                  <CardHeader title="Keyword rules" description="On-screen text keywords that force a class match." />
+                  <CardHeader title="Keyword rules" description="On-screen text keywords that force an action match." />
                   <dl className="space-y-2 text-sm">
                     {Object.entries(model.keyword_rules).map(([className, keywords]) => (
                       <div key={className}>

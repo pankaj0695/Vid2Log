@@ -15,6 +15,7 @@ import {
   IconShield,
   IconBox,
   IconList,
+  IconLayers,
   IconSidebarToggle,
 } from "./icons";
 
@@ -24,6 +25,7 @@ export type SectionId =
   | "process"
   | "models"
   | "video-logs"
+  | "create-actions"
   | "analytics"
   | "admin";
 
@@ -34,6 +36,7 @@ const NAV: {
   icon: typeof IconGrid;
 }[] = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: IconGrid },
+  { id: "create-actions", href: "/create-actions", label: "Create actions", icon: IconLayers },
   { id: "train", href: "/train", label: "Train", icon: IconSliders },
   { id: "models", href: "/models", label: "Models", icon: IconBox },
   { id: "process", href: "/process", label: "Process video", icon: IconFilm },

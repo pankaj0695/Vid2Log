@@ -19,16 +19,18 @@ log = logging.getLogger(__name__)
 _redis_conn = None
 _video_queue: Queue = None
 _training_queue: Queue = None
+_action_discovery_queue: Queue = None
 
 
 def init_queues() -> None:
-    global _redis_conn, _video_queue, _training_queue
+    global _redis_conn, _video_queue, _training_queue, _action_discovery_queue
     settings = get_settings()
     try:
         _redis_conn = redis.from_url(settings.redis_url)
         _redis_conn.ping()
         _video_queue = Queue("video_processing", connection=_redis_conn)
         _training_queue = Queue("training", connection=_redis_conn)
+        _action_discovery_queue = Queue("action_discovery", connection=_redis_conn)
         log.info("Connected to Redis at %s", settings.redis_url)
     except Exception:
         log.warning(
@@ -40,6 +42,7 @@ def init_queues() -> None:
         _redis_conn = None
         _video_queue = None
         _training_queue = None
+        _action_discovery_queue = None
 
 
 def get_video_queue() -> Queue:
@@ -52,6 +55,12 @@ def get_training_queue() -> Queue:
     if _training_queue is None:
         raise RuntimeError("Redis/RQ is not configured (REDIS_URL unreachable).")
     return _training_queue
+
+
+def get_action_discovery_queue() -> Queue:
+    if _action_discovery_queue is None:
+        raise RuntimeError("Redis/RQ is not configured (REDIS_URL unreachable).")
+    return _action_discovery_queue
 
 
 # Auto-retry a job a few times, with backoff, before giving up and leaving
@@ -86,5 +95,19 @@ def enqueue_training_job(training_job_id: str) -> None:
         "app.services.training_pipeline.run_training_job",
         training_job_id,
         job_timeout="2h",
+        retry=_TRANSIENT_RETRY,
+    )
+
+
+def enqueue_action_discovery_job(job_id: str) -> None:
+    # Same reasoning as enqueue_video_job/enqueue_training_job —
+    # action_discovery_pipeline.py imports torch/transformers/hdbscan, so
+    # this must stay a string reference too. 30m timeout mirrors the video
+    # queue's — DINOv2 embedding is the dominant cost, same ballpark as a
+    # video job's own CNN classification pass over similar frame counts.
+    get_action_discovery_queue().enqueue(
+        "app.services.action_discovery_pipeline.run_discovery_job",
+        job_id,
+        job_timeout="30m",
         retry=_TRANSIENT_RETRY,
     )
