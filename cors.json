@@ -1,6 +1,10 @@
 [
   {
-    "origin": ["http://localhost:3000"],
+    "origin": [
+      "http://localhost:3000",
+      "https://vid2log-frontend-984869869088.asia-south1.run.app",
+      "https://vid2log.vercel.app"
+    ],
     "method": ["PUT"],
     "responseHeader": ["Content-Type"],
     "maxAgeSeconds": 3600

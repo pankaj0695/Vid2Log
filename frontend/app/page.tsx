@@ -129,8 +129,8 @@ export default function LandingPage() {
             </h1>
             <p className="mt-5 max-w-lg text-m text-neutral-600">
               Train an image classifier on your app&apos;s screens, then let
-              vid2log watch any recording and produce a clean, analyzable log of
-              what happened, when.
+              vid2log watch any recording and automatically generate a clean,
+              timestamped activity log of what happened, when.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link

@@ -36,6 +36,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
+import google.auth
+import google.auth.transport.requests
+from google.auth import impersonated_credentials
 from google.cloud import storage
 from google.oauth2 import service_account
 
@@ -67,6 +70,9 @@ ACTION_DATASET_PREFIX = "action-datasets/"
 
 _client: Optional[storage.Client] = None
 _bucket_obj = None
+# Only set when running on Application Default Credentials (no JSON key
+# file) — see configure() and generate_upload_url() below.
+_signing_credentials = None
 
 
 def configure() -> None:
@@ -74,13 +80,14 @@ def configure() -> None:
     same service-account JSON as firebase_service.init_firebase() — that
     account needs the Storage Object Admin role on GCS_BUCKET_NAME granted
     via IAM (not something this code can do for you; see the README)."""
-    global _client, _bucket_obj
+    global _client, _bucket_obj, _signing_credentials
     settings = get_settings()
 
     if not settings.gcs_bucket_name:
         log.warning("Cloud Storage is not configured (GCS_BUCKET_NAME is empty).")
         _client = None
         _bucket_obj = None
+        _signing_credentials = None
         return
 
     try:
@@ -91,8 +98,44 @@ def configure() -> None:
             # locally, without an extra IAM SignBlob API round-trip.
             creds = service_account.Credentials.from_service_account_file(cred_path)
             _client = storage.Client(project=creds.project_id, credentials=creds)
+            _signing_credentials = None
         else:
-            _client = storage.Client()
+            # Running on GCP itself (Cloud Run/GCE/GKE) with a service
+            # account ATTACHED to the instance instead of a downloaded key
+            # file. google.auth.default() here returns metadata-server-backed
+            # credentials with no private key material, so
+            # blob.generate_signed_url() below would fail outright with
+            # "you need a private key to sign credentials". The fix:
+            # wrap those credentials in impersonated_credentials targeting
+            # the SAME service account — this routes signing through the IAM
+            # SignBlob API instead of a local RSA signature. Requires that
+            # service account to hold "Service Account Token Creator"
+            # (roles/iam.serviceAccountTokenCreator) ON ITSELF — see
+            # DEPLOYMENT.md (repo root) → step 4, "Service account + IAM roles".
+            adc_creds, project_id = google.auth.default()
+            adc_creds.refresh(google.auth.transport.requests.Request())
+            sa_email = getattr(adc_creds, "service_account_email", None)
+            if sa_email and sa_email != "default":
+                _signing_credentials = impersonated_credentials.Credentials(
+                    source_credentials=adc_creds,
+                    target_principal=sa_email,
+                    target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    lifetime=3600,
+                )
+            else:
+                # Local dev without a key file and without a real GCP
+                # service account attached (e.g. `gcloud auth
+                # application-default login` user credentials) — signed
+                # URLs will fail; everything else (direct upload/download
+                # via this same client) still works fine.
+                _signing_credentials = None
+                log.warning(
+                    "No service account email on the active credentials — "
+                    "signed upload URLs will fail until either "
+                    "GOOGLE_APPLICATION_CREDENTIALS points at a key file, or "
+                    "this process runs under a real GCP service account."
+                )
+            _client = storage.Client(project=project_id, credentials=adc_creds)
         _bucket_obj = _client.bucket(settings.gcs_bucket_name)
         log.info("Cloud Storage configured (bucket=%s).", settings.gcs_bucket_name)
     except Exception:
@@ -104,6 +147,7 @@ def configure() -> None:
         )
         _client = None
         _bucket_obj = None
+        _signing_credentials = None
 
 
 def _bucket():
@@ -128,6 +172,10 @@ def generate_upload_url(blob_path: str, content_type: str, expires_minutes: int 
         expiration=timedelta(minutes=expires_minutes),
         method="PUT",
         content_type=content_type,
+        # None when using a JSON key file (which already signs locally) —
+        # set only under Cloud Run/GCE ADC, to route signing through the IAM
+        # SignBlob API instead. See the big comment in configure() above.
+        credentials=_signing_credentials,
     )
 
 

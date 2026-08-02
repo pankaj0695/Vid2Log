@@ -121,6 +121,10 @@ npm run dev                       # app on :3000
 
 Or run the backend with `docker compose up --build` from `backend/`. Full setup details — Firebase project setup, Cloud Storage bucket/CORS/IAM, Google Drive import, and troubleshooting — live in [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend/README.md).
 
+## Deployment
+
+Step-by-step instructions for deploying the full stack (API, RQ worker, frontend) to Google Cloud Run, including Memorystore, IAM, and Artifact Registry setup, are in [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
 ---
 
 <div align="center">

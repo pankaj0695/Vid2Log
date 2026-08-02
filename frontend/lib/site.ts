@@ -13,8 +13,14 @@ import type { Metadata } from "next";
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 export const SITE_NAME = "vid2log";
+// Written to naturally contain the phrasing people actually search
+// ("generate logs from video", "video to log converter") rather than just
+// describing the product abstractly — this is what shows up as the Google
+// snippet and the social-preview caption, so it's doing SEO/CTR work, not
+// just marketing copy. Keep it under ~160 characters so Google doesn't
+// truncate it with "...".
 export const SITE_DESCRIPTION =
-  "Train an image classifier on your app's screens and automatically turn screen-recording videos into structured, timestamped activity logs — with real test-set metrics, CNN+OCR fusion, and built-in sequential/differential pattern mining.";
+  "Generate structured, timestamped activity logs from screen recordings, automatically — with real test-set metrics and CNN+OCR fusion classification.";
 
 // Applied via each signed-in route's own segment layout.tsx. These pages
 // require auth (ProtectedRoute redirects a signed-out visitor — and a

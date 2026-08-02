@@ -35,8 +35,13 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   keywords: [
     "vid2log",
-    "screen recording to activity log",
+    "generate logs from video",
+    "generate activity log from video",
     "video to log converter",
+    "video log generator",
+    "screen recording to activity log",
+    "convert screen recording to log",
+    "auto-generate log from screen recording",
     "image classifier training",
     "CNN OCR fusion classification",
     "sequential pattern mining",
@@ -73,9 +78,11 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} - Screen recordings to activity logs`,
     description: SITE_DESCRIPTION,
     locale: "en_US",
-    // No explicit `images` — Next.js picks up app/opengraph-image.tsx
-    // automatically and injects the correct og:image tags (and reuses it
-    // for Twitter's card below) for every page that doesn't define its own.
+    // No explicit `images` — Next.js picks up the static app/opengraph-image.png
+    // (a real product screenshot, not a generated placeholder) automatically
+    // and injects the correct og:image tags for every page that doesn't
+    // define its own; reused for Twitter's card below since no separate
+    // twitter-image file exists.
   },
   twitter: {
     card: "summary_large_image",

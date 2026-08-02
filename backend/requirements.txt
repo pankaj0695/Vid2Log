@@ -19,6 +19,10 @@ joblib
 scipy
 rapidfuzz
 requests
+# Python wrapper around the system `tesseract` OCR binary (installed via
+# apt in Dockerfile / `brew install tesseract` locally) — app/ml/ocr.py
+# imports this unconditionally, so it's not optional.
+pytesseract
 torch
 torchvision
 transformers
