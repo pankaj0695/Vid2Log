@@ -118,7 +118,6 @@ function DashboardContent() {
         <PageHeader
           eyebrow="Dashboard"
           title={`Welcome${profile?.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}`}
-          description="What's happening across your models and video jobs."
           action={
             <Link href="/process" className={buttonClasses({ variant: "primary" })}>
               Process a video
@@ -147,7 +146,7 @@ function DashboardContent() {
             <SkeletonStatGrid count={4} />
             <div className="grid gap-6 lg:grid-cols-3">
               <Card className="lg:col-span-2">
-                <CardHeader title="Recent jobs" description="Your most recently submitted video-processing jobs." />
+                <CardHeader title="Recent jobs" />
                 <SkeletonTable rows={6} cols={2} />
               </Card>
               <Card>
@@ -181,7 +180,6 @@ function DashboardContent() {
               <Card className="lg:col-span-2">
                 <CardHeader
                   title="Recent jobs"
-                  description="Your most recently submitted video-processing jobs."
                   action={
                     <Link href="/process" className="text-sm font-medium text-primary hover:underline">
                       View all
@@ -191,7 +189,6 @@ function DashboardContent() {
                 {jobs.length === 0 ? (
                   <EmptyState
                     title="No videos processed yet"
-                    description="Upload a screen recording and pick a trained model to generate your first log."
                     action={
                       <Link href="/process" className={buttonClasses({ variant: "primary", size: "sm" })}>
                         Process a video
@@ -248,10 +245,7 @@ function DashboardContent() {
           </>
         ) : tab === "models" ? (
           <Card>
-            <CardHeader
-              title="Model registry"
-              description="Every model you've trained. Activate the one new video jobs should use by default."
-            />
+            <CardHeader title="Model registry" />
             {models === null ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -263,7 +257,6 @@ function DashboardContent() {
             ) : models.length === 0 ? (
               <EmptyState
                 title="No models yet"
-                description="Train your first model to see it here."
                 action={
                   <Link href="/train" className={buttonClasses({ variant: "primary", size: "sm" })}>
                     Train a model
@@ -316,11 +309,11 @@ function DashboardContent() {
           </Card>
         ) : (
           <Card>
-            <CardHeader title="Activity" description="Every video and training job, merged and time-ordered." />
+            <CardHeader title="Activity" />
             {activityFeed === null ? (
               <SkeletonTable rows={8} cols={3} />
             ) : activityFeed.length === 0 ? (
-              <EmptyState title="No activity yet" description="Train a model or process a video to see it here." />
+              <EmptyState title="No activity yet" />
             ) : (
               <ul className="divide-y divide-neutral-100">
                 {activityFeed.map((item, i) => (

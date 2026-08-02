@@ -10,10 +10,10 @@ import type { ActionDatasetOut, ActionDiscoveryJobOut } from "@/lib/types";
 import { Container, PageHeader } from "@/components/ui/Section";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, HelpText } from "@/components/ui/Input";
+import { Input, Label } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { StatusBadge, Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar, IndeterminateProgressBar } from "@/components/ui/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
@@ -58,6 +58,11 @@ interface ActionClassDraft {
   id: string;
   name: string;
   images: ActionImageDraft[];
+  // Set only while this card's images are still streaming in from
+  // openReview/openEditDataset — how many more are expected, so the grid can
+  // show that many skeleton tiles instead of misreporting "no images yet."
+  // Absent (or 0) once loading is done or for any manually-created action.
+  pendingImages?: number;
 }
 
 type MainTab = "discover" | "saved";
@@ -71,10 +76,27 @@ const STAGE_LABELS: Record<string, string> = {
   uploading_previews: "Uploading previews",
 };
 
+// The backend doesn't report a numeric percent within a stage, but the
+// stages always run in this fixed order — mapping each one to a fraction
+// still gives a real, steadily-advancing progress bar instead of an
+// unhelpful spinner, it just jumps between known checkpoints rather than
+// animating continuously.
+const STAGE_FRACTIONS: Record<string, number> = {
+  starting: 0.06,
+  sampling: 0.28,
+  embedding: 0.58,
+  clustering: 0.8,
+  uploading_previews: 0.93,
+};
+
 function progressLabel(progress: ActionDiscoveryJobOut["progress"]): string | null {
   if (!progress) return null;
   const base = STAGE_LABELS[progress.stage] || progress.stage;
   return progress.detail ? `${base} — ${progress.detail}` : `${base}…`;
+}
+
+function progressFraction(stage: string): number {
+  return STAGE_FRACTIONS[stage] ?? 0.5;
 }
 
 function formatDate(iso: string | null): string {
@@ -111,7 +133,6 @@ function CreateActionsContent() {
   const [reviewMode, setReviewMode] = useState<ReviewMode>(null);
   const [reviewSourceId, setReviewSourceId] = useState<string | null>(null);
   const [reviewSourceLabel, setReviewSourceLabel] = useState<string>("");
-  const [loadingReview, setLoadingReview] = useState(false);
   const [classes, setClasses] = useState<ActionClassDraft[]>([]);
   const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
   const [datasetName, setDatasetName] = useState("");
@@ -119,13 +140,18 @@ function CreateActionsContent() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  // Drag-to-move-between-actions — `draggedImage` is set on drag start and
+  // read by whichever action card the pointer is released over, regardless
+  // of that image's source (discover/dataset/upload) or its position.
+  const [draggedImage, setDraggedImage] = useState<{ classId: string; key: string } | null>(null);
+  const [dragOverClassId, setDragOverClassId] = useState<string | null>(null);
 
   // ── Saved datasets ───────────────────────────────────────────────────────
   const [datasets, setDatasets] = useState<ActionDatasetOut[] | null>(null);
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
   const [expandedDatasetId, setExpandedDatasetId] = useState<string | null>(null);
-  const [datasetPreviews, setDatasetPreviews] = useState<Record<string, string[][]>>({});
-  const [loadingDatasetPreviewId, setLoadingDatasetPreviewId] = useState<string | null>(null);
+  // null = that slot's fetch hasn't resolved yet — see toggleExpandDataset.
+  const [datasetPreviews, setDatasetPreviews] = useState<Record<string, (string | null)[][]>>({});
   const [deleteDatasetTarget, setDeleteDatasetTarget] = useState<ActionDatasetOut | null>(null);
   const [deleteDatasetBusy, setDeleteDatasetBusy] = useState(false);
 
@@ -218,26 +244,39 @@ function CreateActionsContent() {
     setReviewSourceLabel(job.original_filename);
     setDatasetName(job.original_filename.replace(/\.[^.]+$/, ""));
     setSelectedForMerge(new Set());
-    setLoadingReview(true);
+    const clusters = job.clusters ?? [];
+    // Cards render immediately, empty — each one's images then stream in as
+    // their own fetch resolves, instead of the whole page waiting on every
+    // single image before showing anything.
+    const drafts: ActionClassDraft[] = clusters.map((cluster) => ({
+      id: newId(),
+      name: cluster.name,
+      images: [],
+      pendingImages: cluster.frame_count,
+    }));
+    setClasses(drafts);
     try {
-      const clusters = job.clusters ?? [];
-      const built = await Promise.all(
-        clusters.map(async (cluster): Promise<ActionClassDraft> => {
-          const frameIds = Array.from({ length: cluster.frame_count }, (_, i) => String(i));
-          const images = await Promise.all(
-            frameIds.map(async (frameId): Promise<ActionImageDraft> => {
+      await Promise.all(
+        clusters.map((cluster, i) => {
+          const draftId = drafts[i].id;
+          const frameIds = Array.from({ length: cluster.frame_count }, (_, idx) => String(idx));
+          return Promise.all(
+            frameIds.map(async (frameId) => {
               const previewUrl = await api.actions.frameUrl(job.job_id, cluster.id, frameId);
-              return { key: `${cluster.id}:${frameId}`, source: "discover", clusterId: cluster.id, frameId, previewUrl };
+              const image: ActionImageDraft = { key: `${cluster.id}:${frameId}`, source: "discover", clusterId: cluster.id, frameId, previewUrl };
+              setClasses((prev) =>
+                prev.map((c) =>
+                  c.id === draftId
+                    ? { ...c, images: [...c.images, image], pendingImages: Math.max(0, (c.pendingImages ?? 1) - 1) }
+                    : c
+                )
+              );
             })
           );
-          return { id: newId(), name: cluster.name, images };
         })
       );
-      setClasses(built);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to load discovered actions.");
-    } finally {
-      setLoadingReview(false);
     }
   }
 
@@ -248,31 +287,43 @@ function CreateActionsContent() {
     setReviewSourceLabel(dataset.name);
     setDatasetName(dataset.name);
     setSelectedForMerge(new Set());
-    setLoadingReview(true);
+    // Same progressive fill as openReview - cards appear immediately, each
+    // image pops in as its own fetch resolves.
+    const drafts: ActionClassDraft[] = dataset.classes.map((cls) => ({
+      id: newId(),
+      name: cls.name,
+      images: [],
+      pendingImages: cls.image_count,
+    }));
+    setClasses(drafts);
     try {
-      const built = await Promise.all(
-        dataset.classes.map(async (cls, classIndex): Promise<ActionClassDraft> => {
+      await Promise.all(
+        dataset.classes.map((cls, classIndex) => {
+          const draftId = drafts[classIndex].id;
           const imageIndices = Array.from({ length: cls.image_count }, (_, i) => i);
-          const images = await Promise.all(
-            imageIndices.map(async (imageIndex): Promise<ActionImageDraft> => {
+          return Promise.all(
+            imageIndices.map(async (imageIndex) => {
               const previewUrl = await api.actions.datasetImageUrl(dataset.dataset_id, classIndex, imageIndex);
-              return {
+              const image: ActionImageDraft = {
                 key: `ds:${classIndex}:${imageIndex}`,
                 source: "dataset",
                 datasetClassIndex: classIndex,
                 datasetImageIndex: imageIndex,
                 previewUrl,
               };
+              setClasses((prev) =>
+                prev.map((c) =>
+                  c.id === draftId
+                    ? { ...c, images: [...c.images, image], pendingImages: Math.max(0, (c.pendingImages ?? 1) - 1) }
+                    : c
+                )
+              );
             })
           );
-          return { id: newId(), name: cls.name, images };
         })
       );
-      setClasses(built);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to load this dataset's actions.");
-    } finally {
-      setLoadingReview(false);
     }
   }
 
@@ -357,6 +408,23 @@ function CreateActionsContent() {
         return { ...c, images: c.images.filter((img) => img.key !== key) };
       })
     );
+  }
+
+  // Moves one image from its current action into a different one, in place
+  // (no re-upload, no URL churn — same ActionImageDraft object just moves
+  // arrays). No-op if dropped back onto its own action.
+  function moveImage(imageKey: string, fromClassId: string, toClassId: string) {
+    if (fromClassId === toClassId) return;
+    setClasses((prev) => {
+      const source = prev.find((c) => c.id === fromClassId);
+      const image = source?.images.find((img) => img.key === imageKey);
+      if (!image) return prev;
+      return prev.map((c) => {
+        if (c.id === fromClassId) return { ...c, images: c.images.filter((img) => img.key !== imageKey) };
+        if (c.id === toClassId) return { ...c, images: [...c.images, image] };
+        return c;
+      });
+    });
   }
 
   async function addImagesToClass(classId: string, files: File[]) {
@@ -447,22 +515,38 @@ function CreateActionsContent() {
     }
     setExpandedDatasetId(dataset.dataset_id);
     if (datasetPreviews[dataset.dataset_id]) return;
-    setLoadingDatasetPreviewId(dataset.dataset_id);
+    // null = still loading — the grid renders instantly with that many
+    // skeleton slots, then each thumbnail pops in as its own fetch resolves
+    // instead of the whole grid waiting on the slowest image.
+    const counts = dataset.classes.map((cls) => Math.min(cls.image_count, 8));
+    setDatasetPreviews((prev) => ({
+      ...prev,
+      [dataset.dataset_id]: counts.map((count) => Array.from({ length: count }, () => null)),
+    }));
     try {
-      const perClass = await Promise.all(
+      await Promise.all(
         dataset.classes.map((cls, classIndex) => {
-          const count = Math.min(cls.image_count, 8);
+          const count = counts[classIndex];
           return Promise.all(
-            Array.from({ length: count }, (_, imageIndex) => api.actions.datasetImageUrl(dataset.dataset_id, classIndex, imageIndex))
+            Array.from({ length: count }, (_, imageIndex) =>
+              api.actions.datasetImageUrl(dataset.dataset_id, classIndex, imageIndex).then((url) => {
+                setDatasetPreviews((prev) => {
+                  const current = prev[dataset.dataset_id];
+                  if (!current) return prev;
+                  const nextRow = [...current[classIndex]];
+                  nextRow[imageIndex] = url;
+                  const nextRows = [...current];
+                  nextRows[classIndex] = nextRow;
+                  return { ...prev, [dataset.dataset_id]: nextRows };
+                });
+              })
+            )
           );
         })
       );
-      setDatasetPreviews((prev) => ({ ...prev, [dataset.dataset_id]: perClass }));
     } catch {
       // Thumbnails are a nicety — the dataset's name/action/count info above
-      // still renders fine even if previews fail to load.
-    } finally {
-      setLoadingDatasetPreviewId(null);
+      // still renders fine even if some previews fail to load.
     }
   }
 
@@ -485,11 +569,7 @@ function CreateActionsContent() {
   return (
     <AppShell section="create-actions" crumb="Create actions">
       <Container className="py-10">
-        <PageHeader
-          eyebrow="Create actions"
-          title="Auto-discover actions from a video"
-          description="Upload a demo recording — vid2log samples frames and groups visually similar ones into candidate actions. Rename, merge, add, or delete them before saving a reusable dataset."
-        />
+        <PageHeader eyebrow="Create actions" title="Auto-discover actions from a video" />
 
         {!reviewMode && (
           <Tabs
@@ -514,26 +594,38 @@ function CreateActionsContent() {
               </p>
             </div>
 
-            {loadingReview ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="animate-fade-in-up" style={stagger(i)}>
-                    <SkeletonCard />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+            <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
                 <div className="min-w-0 space-y-4">
                   <Card>
-                    <CardHeader title="Dataset name" description="Shown on the Train page's import picker." />
+                    <CardHeader title="Dataset name" />
                     <Input value={datasetName} onChange={(e) => setDatasetName(e.target.value)} placeholder="e.g. math-game-demo-actions" disabled={saving} />
                   </Card>
 
                   {saveError && <Alert tone="danger">{saveError}</Alert>}
 
                   {classes.map((cls, i) => (
-                    <Card key={cls.id} className="animate-fade-in-up" style={stagger(i, 30)}>
+                    <Card
+                      key={cls.id}
+                      className={`animate-fade-in-up transition-shadow ${
+                        dragOverClassId === cls.id && draggedImage?.classId !== cls.id
+                          ? "ring-2 ring-primary ring-offset-2 ring-offset-surface"
+                          : ""
+                      }`}
+                      style={stagger(i, 30)}
+                      onDragOver={(e) => {
+                        if (!draggedImage) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragOverClassId !== cls.id) setDragOverClassId(cls.id);
+                      }}
+                      onDragLeave={() => setDragOverClassId((prev) => (prev === cls.id ? null : prev))}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedImage) moveImage(draggedImage.key, draggedImage.classId, cls.id);
+                        setDraggedImage(null);
+                        setDragOverClassId(null);
+                      }}
+                    >
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-1 items-center gap-3">
                           <input
@@ -575,12 +667,30 @@ function CreateActionsContent() {
                         </div>
                       </div>
 
-                      {cls.images.length === 0 ? (
-                        <p className="text-sm text-neutral-500">No images in this action yet.</p>
+                      {cls.images.length === 0 && !cls.pendingImages ? (
+                        <p className="text-sm text-neutral-500">
+                          {dragOverClassId === cls.id && draggedImage ? "Drop to move image here" : "No images in this action yet."}
+                        </p>
                       ) : (
                         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
                           {cls.images.map((img) => (
-                            <div key={img.key} className="group relative aspect-square overflow-hidden rounded-lg border border-neutral-200">
+                            <div
+                              key={img.key}
+                              draggable={!saving}
+                              onDragStart={(e) => {
+                                setDraggedImage({ classId: cls.id, key: img.key });
+                                e.dataTransfer.effectAllowed = "move";
+                                // Some browsers need real drag data set to allow the drop.
+                                e.dataTransfer.setData("text/plain", img.key);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedImage(null);
+                                setDragOverClassId(null);
+                              }}
+                              className={`group relative aspect-square cursor-grab overflow-hidden rounded-lg border border-neutral-200 active:cursor-grabbing animate-scale-in ${
+                                draggedImage?.key === img.key ? "opacity-40" : ""
+                              }`}
+                            >
                               <button
                                 type="button"
                                 onClick={() => openActionLightbox(cls.images, img.key)}
@@ -589,7 +699,7 @@ function CreateActionsContent() {
                               >
                                 {/* Local blob: object URLs — next/image can't optimize these, plain <img> is correct here. */}
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
+                                <img src={img.previewUrl} alt="" className="h-full w-full object-cover" draggable={false} />
                               </button>
                               <button
                                 type="button"
@@ -602,13 +712,16 @@ function CreateActionsContent() {
                               </button>
                             </div>
                           ))}
+                          {Array.from({ length: cls.pendingImages ?? 0 }).map((_, i) => (
+                            <Skeleton key={`pending-${cls.id}-${i}`} className="aspect-square rounded-lg" />
+                          ))}
                         </div>
                       )}
                     </Card>
                   ))}
 
                   {classes.length === 0 && (
-                    <EmptyState title="No actions to review" description="This job didn't produce any clusters — try a longer or more varied video." />
+                    <EmptyState title="No actions to review" />
                   )}
                 </div>
 
@@ -634,7 +747,6 @@ function CreateActionsContent() {
                       >
                         Merge selected {selectedForMerge.size > 1 ? `(${selectedForMerge.size})` : ""}
                       </Button>
-                      <p className="text-xs text-neutral-500">Check 2+ actions in the list to merge them into one.</p>
                     </div>
                   </Card>
 
@@ -648,14 +760,13 @@ function CreateActionsContent() {
                   </Card>
                 </aside>
               </div>
-            )}
           </div>
         ) : (
           <>
             {tab === "discover" && (
               <div className="space-y-6">
                 <Card className="max-w-3xl">
-                  <CardHeader title="Upload a demo video" description="Longer, varied recordings produce more useful clusters." />
+                  <CardHeader title="Upload a demo video" />
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="sm:col-span-3">
                       <Label htmlFor="action-video-file">Screen recording</Label>
@@ -700,7 +811,6 @@ function CreateActionsContent() {
                         onChange={(e) => setMinClusterSize(Number(e.target.value) || 2)}
                         disabled={uploading}
                       />
-                      <HelpText>Fewer frames than this in a group won&apos;t become its own action.</HelpText>
                     </div>
                     <div className="flex items-end">
                       <Button className="w-full" onClick={handleStartDiscovery} loading={uploading} disabled={!videoFile}>
@@ -711,6 +821,10 @@ function CreateActionsContent() {
 
                   {uploading && (
                     <div className="mt-4">
+                      <div className="mb-1 flex items-center justify-between text-sm text-neutral-500">
+                        <span>Uploading video…</span>
+                        <span className="font-mono text-xs text-neutral-400">{Math.round(uploadProgress * 100)}%</span>
+                      </div>
                       <ProgressBar fraction={uploadProgress} />
                     </div>
                   )}
@@ -743,7 +857,7 @@ function CreateActionsContent() {
                       ))}
                     </div>
                   ) : jobs.length === 0 ? (
-                    <EmptyState title="No discovery jobs yet" description="Upload a video above to discover its actions." />
+                    <EmptyState title="No discovery jobs yet" />
                   ) : (
                     <div className="space-y-3">
                       {jobs.map((job, i) => (
@@ -756,10 +870,19 @@ function CreateActionsContent() {
                                 {job.clusters ? ` · ${job.clusters.length} actions found` : ""}
                               </p>
                               {job.status === "processing" && job.progress && (
-                                <p className="mt-1 flex items-center gap-2 text-sm text-neutral-500">
-                                  <Spinner size="sm" /> {progressLabel(job.progress)}
-                                  {autoOpenJobId === job.job_id && " — opens automatically when done"}
-                                </p>
+                                <div className="mt-2 max-w-xs">
+                                  <div className="mb-1 flex items-center gap-2 text-sm text-neutral-500">
+                                    <Spinner size="sm" />
+                                    <span className="truncate">{progressLabel(job.progress)}</span>
+                                    <span className="ml-auto shrink-0 font-mono text-xs text-neutral-400">
+                                      {Math.round(progressFraction(job.progress.stage) * 100)}%
+                                    </span>
+                                  </div>
+                                  <ProgressBar fraction={progressFraction(job.progress.stage)} />
+                                  {autoOpenJobId === job.job_id && (
+                                    <p className="mt-1 text-xs text-neutral-400">Opens automatically when done</p>
+                                  )}
+                                </div>
                               )}
                               {job.status === "failed" && job.error && (
                                 <p className="mt-1 text-sm text-danger">{job.error}</p>
@@ -803,10 +926,7 @@ function CreateActionsContent() {
                     ))}
                   </div>
                 ) : datasets.length === 0 ? (
-                  <EmptyState
-                    title="No saved datasets yet"
-                    description="Discover and review a video's actions, then save it to see it here — and to import it directly from the Train page."
-                  />
+                  <EmptyState title="No saved datasets yet" />
                 ) : (
                   <div className="space-y-3">
                     {datasets.map((ds, i) => (
@@ -834,34 +954,35 @@ function CreateActionsContent() {
 
                         {expandedDatasetId === ds.dataset_id && (
                           <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
-                            {loadingDatasetPreviewId === ds.dataset_id ? (
-                              <Spinner size="sm" />
-                            ) : (
-                              ds.classes.map((cls, classIndex) => (
+                            {ds.classes.map((cls, classIndex) => {
+                              const row = datasetPreviews[ds.dataset_id]?.[classIndex] ?? [];
+                              const resolvedUrls = row.filter((u): u is string => u !== null);
+                              return (
                                 <div key={cls.name}>
                                   <p className="mb-2 text-sm font-medium text-text">
                                     {cls.name} <span className="text-neutral-500">({cls.image_count})</span>
                                   </p>
                                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-                                    {(datasetPreviews[ds.dataset_id]?.[classIndex] ?? []).map((url, imgIdx) => {
-                                      const classUrls = datasetPreviews[ds.dataset_id]?.[classIndex] ?? [];
-                                      return (
+                                    {row.map((url, imgIdx) =>
+                                      url ? (
                                         <button
                                           key={imgIdx}
                                           type="button"
-                                          onClick={() => setLightbox({ images: classUrls, index: imgIdx })}
-                                          className="aspect-square cursor-zoom-in overflow-hidden rounded-lg border border-neutral-200"
+                                          onClick={() => setLightbox({ images: resolvedUrls, index: resolvedUrls.indexOf(url) })}
+                                          className="aspect-square cursor-zoom-in overflow-hidden rounded-lg border border-neutral-200 animate-scale-in"
                                           aria-label="View full size"
                                         >
                                           {/* eslint-disable-next-line @next/next/no-img-element */}
                                           <img src={url} alt="" className="h-full w-full object-cover" />
                                         </button>
-                                      );
-                                    })}
+                                      ) : (
+                                        <Skeleton key={imgIdx} className="aspect-square rounded-lg" />
+                                      )
+                                    )}
                                   </div>
                                 </div>
-                              ))
-                            )}
+                              );
+                            })}
                           </div>
                         )}
                       </Card>
@@ -876,12 +997,12 @@ function CreateActionsContent() {
 
       {saving && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm" role="status" aria-live="polite">
-          <div className="animate-fade-in-up flex flex-col items-center gap-3 rounded-2xl border border-neutral-200 bg-surface px-8 py-7 text-center shadow-2xl">
+          <div className="animate-fade-in-up flex w-72 flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-surface px-8 py-7 text-center shadow-2xl">
             <Spinner size="lg" />
             <p className="text-sm font-semibold text-text">Saving your dataset…</p>
-            <p className="max-w-xs text-xs text-neutral-500">
-              Organizing and uploading images — this can take a moment for larger datasets.
-            </p>
+            <div className="w-full">
+              <IndeterminateProgressBar />
+            </div>
           </div>
         </div>
       )}

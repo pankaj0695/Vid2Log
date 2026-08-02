@@ -224,11 +224,7 @@ function VideoLogsContent() {
   return (
     <AppShell section="video-logs" crumb="Video logs">
       <Container className="py-10">
-        <PageHeader
-          eyebrow="Video logs"
-          title="Video logs"
-          description="Every finished log — from a processed video or an imported CSV. Download, combine, rename, or delete them here."
-        />
+        <PageHeader eyebrow="Video logs" title="Video logs" />
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-neutral-500">
@@ -288,7 +284,6 @@ function VideoLogsContent() {
         ) : doneJobs.length === 0 ? (
           <EmptyState
             title="No logs yet"
-            description="Process a video, or import a CSV log, to see it here."
           />
         ) : (
           <div className="space-y-3">

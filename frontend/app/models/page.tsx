@@ -112,7 +112,6 @@ function ModelsContent() {
         <PageHeader
           eyebrow="Models"
           title="Model registry"
-          description="Every model you've trained. Activate the one new video jobs should use by default."
           action={
             <Link href="/train" className={buttonClasses({ variant: "primary" })}>
               Train a model
@@ -137,7 +136,6 @@ function ModelsContent() {
           ) : models.length === 0 ? (
             <EmptyState
               title="No models yet"
-              description="Train your first model to see it here."
               action={
                 <Link href="/train" className={buttonClasses({ variant: "primary", size: "sm" })}>
                   Train a model

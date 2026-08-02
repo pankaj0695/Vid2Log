@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -29,13 +28,11 @@ export function Footer() {
         <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div>
             <p className="flex items-center gap-2 font-display text-lg font-bold text-text">
-              <Image
-                src="/vid2log-logo.png"
-                alt=""
-                width={24}
-                height={24}
-                className="shrink-0"
-              />
+              {/* Plain img, not next/image - the optimizer's re-encoding
+                  softened this small logo noticeably; a static PNG served
+                  as-is stays crisp. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/vid2log-logo.png" alt="" width={24} height={24} className="shrink-0" />
               vid2log
             </p>
             <p className="mt-1 max-w-sm text-sm text-neutral-600">
@@ -61,9 +58,6 @@ export function Footer() {
             </Link>
           </nav>
         </div>
-        <p className="mt-8 text-sm text-neutral-400">
-          Built for IIT Bombay research &amp; learning-platform video analysis.
-        </p>
       </div>
     </footer>
   );

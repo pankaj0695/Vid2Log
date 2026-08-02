@@ -488,11 +488,7 @@ function AnalyticsContent() {
   return (
     <AppShell section="analytics" crumb="Analytics">
       <Container className="py-10">
-        <PageHeader
-          eyebrow="Analytics"
-          title="Pattern analysis"
-          description="See what your processed videos actually contain - action distribution, common workflows, what differs between groups, and one video at a time."
-        />
+        <PageHeader eyebrow="Analytics" title="Pattern analysis" />
 
         <Tabs
           tabs={[
@@ -530,14 +526,12 @@ function AnalyticsContent() {
         ) : doneJobs.length === 0 ? (
           <EmptyState
             title="No completed videos yet"
-            description="Process at least one video before running pattern analysis."
           />
         ) : tab === "overview" ? (
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Select logs"
-                description="Descriptive stats below are computed only across the videos you pick here."
               />
               <JobSelectList
                 jobs={doneJobs}
@@ -714,7 +708,6 @@ function AnalyticsContent() {
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Select logs"
-                description="Frequent sub-sequences across the chosen videos."
               />
               <JobSelectList
                 jobs={doneJobs}
@@ -1208,7 +1201,6 @@ function AnalyticsContent() {
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Select logs"
-                description="Pick one or more videos - each renders as its own timeline below, stacked vertically."
               />
               <JobSelectList
                 jobs={doneJobs}

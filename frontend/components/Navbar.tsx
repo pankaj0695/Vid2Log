@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -62,13 +61,11 @@ export function Navbar() {
           href="/"
           className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-text"
         >
-          <Image
-            src="/vid2log-logo.png"
-            alt=""
-            width={28}
-            height={28}
-            className="shrink-0"
-          />
+          {/* Plain img, not next/image - the optimizer's re-encoding
+              softened this small logo noticeably; a static PNG served as-is
+              stays crisp. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/vid2log-logo.png" alt="" width={28} height={28} className="shrink-0" />
           vid2log
         </Link>
 

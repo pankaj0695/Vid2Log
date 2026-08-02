@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -58,15 +57,10 @@ function initials(name: string | null, email: string | null): string {
 }
 
 function LogoMark() {
-  return (
-    <Image
-      src="/vid2log-logo.png"
-      alt=""
-      width={28}
-      height={28}
-      className="shrink-0"
-    />
-  );
+  // Plain img, not next/image - the optimizer's re-encoding softened this
+  // small logo noticeably; a static PNG served as-is stays crisp.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/vid2log-logo.png" alt="" width={28} height={28} className="shrink-0" />;
 }
 
 function NavList({

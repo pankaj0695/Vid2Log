@@ -350,6 +350,24 @@ code, pre, kbd, samp {
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
+/* Sweeping stripe for progress that has no known percentage (e.g. saving a
+   dataset — one awaited request, no per-chunk feedback from the backend).
+   Loops a short highlight back and forth across the track so it still reads
+   as "actively working," not stalled, the way a bare static bar would.
+   See components/ui/ProgressBar.tsx's IndeterminateProgressBar. */
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.1s ease-in-out infinite;
+}
+
 /* Subtle "lift" for interactive cards/rows — a small upward nudge + soft
    shadow on hover, standing in for the shadow-based elevation this design
    system otherwise avoids (it uses borders instead of shadows for resting

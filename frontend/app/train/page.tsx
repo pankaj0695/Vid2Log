@@ -539,7 +539,6 @@ function TrainContent() {
         <PageHeader
           eyebrow="Train"
           title="Train a model"
-          description="Create an action for every screen or activity you want recognized, add ~20–25 example images each, and vid2log will fine-tune a classifier and report real test-set metrics."
           action={
             <Link href="/models" className={buttonClasses({ variant: "outline" })}>
               Model registry
@@ -593,7 +592,6 @@ function TrainContent() {
                       onChange={(e) => setEpochs(Number(e.target.value) || 1)}
                       disabled={isBusy}
                     />
-                    <HelpText>More epochs can improve accuracy but take longer to train.</HelpText>
                   </div>
                   <div>
                     <Label htmlFor="batch-size">Batch size</Label>
@@ -606,7 +604,6 @@ function TrainContent() {
                       onChange={(e) => setBatchSize(Number(e.target.value) || 1)}
                       disabled={isBusy}
                     />
-                    <HelpText>Images processed per training step.</HelpText>
                   </div>
                   <div>
                     <Label htmlFor="learning-rate">Learning rate</Label>
@@ -620,7 +617,6 @@ function TrainContent() {
                       onChange={(e) => setLearningRate(Number(e.target.value) || DEFAULT_LEARNING_RATE)}
                       disabled={isBusy}
                     />
-                    <HelpText>Lower values train more slowly but can be more stable.</HelpText>
                   </div>
                   <div>
                     <Label>Train / val / test split (%)</Label>
@@ -666,7 +662,6 @@ function TrainContent() {
             <Card>
               <CardHeader
                 title="Import from a saved dataset"
-                description="Reuse a dataset saved from Create actions — makes fresh, disposable copies of its images for this training run only; the saved dataset itself is untouched."
               />
               {datasets === null ? (
                 <p className="text-sm text-neutral-500">Loading saved datasets…</p>
@@ -909,10 +904,7 @@ function TrainContent() {
 
         {tab === "jobs" && (
           <div>
-            <CardHeader
-              title="Training jobs"
-              description="Your training history. A failed job — or one stuck 'queued'/'processing' for a while — keeps its uploaded images, so you can retry it without uploading anything again. A retry reuses the same job, it won't create a duplicate entry."
-            />
+            <CardHeader title="Training jobs" />
             {jobsListError && (
               <Alert tone="danger" className="mb-4">
                 {jobsListError}
@@ -933,7 +925,7 @@ function TrainContent() {
                 ))}
               </div>
             ) : trainingJobs.length === 0 ? (
-              <EmptyState title="No training jobs yet" description="Train a model to see its history here." />
+              <EmptyState title="No training jobs yet" />
             ) : (
               <div className="space-y-3">
                 {trainingJobs.map((job, i) => (

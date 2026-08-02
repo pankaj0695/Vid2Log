@@ -83,11 +83,7 @@ function AdminContent() {
   return (
     <AppShell section="admin" crumb="Admin">
       <Container className="py-10">
-        <PageHeader
-          eyebrow="Admin"
-          title="Admin dashboard"
-          description="System-wide visibility across users, jobs, and models. Only visible to accounts with role=admin."
-        />
+        <PageHeader eyebrow="Admin" title="Admin dashboard" />
 
         <Tabs
           tabs={[
@@ -162,7 +158,7 @@ function AdminContent() {
           </>
         ) : (
           <Card>
-            <CardHeader title="Users" description="Promote or demote accounts between user and admin." />
+            <CardHeader title="Users" />
             {users === null ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">

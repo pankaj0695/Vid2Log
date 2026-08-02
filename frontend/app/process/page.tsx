@@ -157,7 +157,6 @@ function ProcessContent() {
         <PageHeader
           eyebrow="Process"
           title="Process a video"
-          description="Upload a screen recording and pick which trained model should classify it. Videos are deleted from storage automatically once processing finishes."
           action={
             <Link href="/video-logs" className={buttonClasses({ variant: "outline" })}>
               Video logs
@@ -216,10 +215,7 @@ function ProcessContent() {
                     ))}
                   </ul>
                 )}
-                <p className="mt-1.5 text-sm text-neutral-500">
-                  Select multiple files (or Ctrl/Cmd-click) to queue several videos at once — each one uploads and
-                  starts processing independently, in parallel with however many workers you have running.
-                </p>
+                <p className="mt-1.5 text-sm text-neutral-500">Videos are deleted automatically once processing finishes.</p>
               </div>
               <div>
                 <Label htmlFor="model-select">Model</Label>
@@ -310,7 +306,7 @@ function ProcessContent() {
                 ))}
               </div>
             ) : jobs.length === 0 ? (
-              <EmptyState title="No jobs yet" description="Upload a video in the New job tab to get started." />
+              <EmptyState title="No jobs yet" />
             ) : (
               <div className="space-y-3">
                 {jobs.map((job, i) => (
