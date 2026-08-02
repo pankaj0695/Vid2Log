@@ -4,6 +4,13 @@
 // grabs a fresh ID token straight off the current Firebase user — callers
 // never have to thread a token through manually.
 import { auth } from "./firebase";
+// Fires GA4 events for the product's key funnel actions right where they
+// actually succeed (after `request()` resolves without throwing) — one
+// place to instrument instead of scattering `trackEvent()` calls across
+// every page component that happens to call these. Named import, not
+// `api.analytics`, to avoid colliding with the unrelated SPM/DSM namespace
+// further down this file.
+import { trackEvent } from "./firebase-analytics";
 import type {
   ActionDiscoveryJobOut,
   ActionDatasetOut,
@@ -98,7 +105,14 @@ export const api = {
       original_filename: string;
       fps?: number;
       model_id?: string | null;
-    }) => request<JobOut>("/jobs", { method: "POST", body: JSON.stringify(payload) }),
+    }) =>
+      request<JobOut>("/jobs", { method: "POST", body: JSON.stringify(payload) }).then((job) => {
+        trackEvent("video_processing_started", {
+          fps: payload.fps ?? null,
+          has_model: Boolean(payload.model_id),
+        });
+        return job;
+      }),
     list: (limit = 50) => request<JobOut[]>(`/jobs?limit=${limit}`),
     get: (jobId: string) => request<JobOut>(`/jobs/${jobId}`),
     cancel: (jobId: string) => request<{ status: string; note?: string }>(`/jobs/${jobId}`, { method: "DELETE" }),
@@ -115,6 +129,7 @@ export const api = {
     get: (jobId: string) => request<LogOut>(`/logs/${jobId}`),
     csvUrl: async (jobId: string) => {
       const blob = await request<Blob>(`/logs/${jobId}/csv`);
+      trackEvent("log_exported", { format: "csv", job_id: jobId });
       return URL.createObjectURL(blob);
     },
     combine: async (jobIds: string[]) => {
@@ -122,6 +137,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(jobIds),
       });
+      trackEvent("log_exported", { format: "csv", combined: true, num_jobs: jobIds.length });
       return URL.createObjectURL(blob);
     },
     // FormData body — `request()` already skips setting a Content-Type
@@ -131,7 +147,10 @@ export const api = {
     importCsv: (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return request<JobOut>("/logs/import", { method: "POST", body: formData });
+      return request<JobOut>("/logs/import", { method: "POST", body: formData }).then((job) => {
+        trackEvent("log_imported", { format: "csv" });
+        return job;
+      });
     },
   },
 
@@ -146,7 +165,11 @@ export const api = {
       metrics?: unknown;
       dataset_version?: string;
     }) => request<ModelOut>("/models", { method: "POST", body: JSON.stringify(payload) }),
-    activate: (modelId: string) => request<ModelOut>(`/models/${modelId}/activate`, { method: "PATCH" }),
+    activate: (modelId: string) =>
+      request<ModelOut>(`/models/${modelId}/activate`, { method: "PATCH" }).then((model) => {
+        trackEvent("model_activated", { model_id: modelId });
+        return model;
+      }),
     updateKeywordRules: (modelId: string, keywordRules: Record<string, string[]>) =>
       request<ModelOut>(`/models/${modelId}/keyword-rules`, {
         method: "PATCH",
@@ -166,10 +189,22 @@ export const api = {
       batch_size?: number;
       learning_rate?: number;
       keyword_rules?: Record<string, string[]> | null;
-    }) => request<TrainJobOut>("/train", { method: "POST", body: JSON.stringify(payload) }),
+    }) =>
+      request<TrainJobOut>("/train", { method: "POST", body: JSON.stringify(payload) }).then((job) => {
+        trackEvent("training_started", {
+          epochs: payload.epochs ?? null,
+          batch_size: payload.batch_size ?? null,
+          num_actions: Object.keys(payload.dataset).length,
+        });
+        return job;
+      }),
     list: (limit = 50) => request<TrainJobOut[]>(`/train?limit=${limit}`),
     status: (trainingJobId: string) => request<TrainJobOut>(`/train/${trainingJobId}`),
-    retry: (trainingJobId: string) => request<TrainJobOut>(`/train/${trainingJobId}/retry`, { method: "POST" }),
+    retry: (trainingJobId: string) =>
+      request<TrainJobOut>(`/train/${trainingJobId}/retry`, { method: "POST" }).then((job) => {
+        trackEvent("training_retried", { training_job_id: trainingJobId });
+        return job;
+      }),
   },
 
   actions: {
@@ -178,7 +213,16 @@ export const api = {
       original_filename: string;
       fps?: number;
       min_cluster_size?: number;
-    }) => request<ActionDiscoveryJobOut>("/actions/discover", { method: "POST", body: JSON.stringify(payload) }),
+    }) =>
+      request<ActionDiscoveryJobOut>("/actions/discover", { method: "POST", body: JSON.stringify(payload) }).then(
+        (job) => {
+          trackEvent("action_discovery_started", {
+            fps: payload.fps ?? null,
+            min_cluster_size: payload.min_cluster_size ?? null,
+          });
+          return job;
+        }
+      ),
     listDiscoveryJobs: (limit = 20) => request<ActionDiscoveryJobOut[]>(`/actions/discover?limit=${limit}`),
     getDiscoveryJob: (jobId: string) => request<ActionDiscoveryJobOut>(`/actions/discover/${jobId}`),
     // Preview frames are proxied bytes behind auth, not a public URL — fetch
@@ -192,7 +236,13 @@ export const api = {
     cancelOrDeleteDiscoveryJob: (jobId: string) =>
       request<{ status: string; note?: string }>(`/actions/discover/${jobId}`, { method: "DELETE" }),
     saveDataset: (jobId: string, payload: { name: string; classes: SaveActionClass[] }) =>
-      request<ActionDatasetOut>(`/actions/discover/${jobId}/save`, { method: "POST", body: JSON.stringify(payload) }),
+      request<ActionDatasetOut>(`/actions/discover/${jobId}/save`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }).then((dataset) => {
+        trackEvent("action_dataset_saved", { dataset_name: payload.name, num_actions: payload.classes.length });
+        return dataset;
+      }),
 
     listDatasets: (limit = 100) => request<ActionDatasetOut[]>(`/actions/datasets?limit=${limit}`),
     getDataset: (datasetId: string) => request<ActionDatasetOut>(`/actions/datasets/${datasetId}`),

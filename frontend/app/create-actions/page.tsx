@@ -3,7 +3,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
-import { GoogleDriveImportButton } from "@/components/GoogleDriveImportButton";
 import { api } from "@/lib/api";
 import { uploadToGCS } from "@/lib/gcs";
 import type { ActionDatasetOut, ActionDiscoveryJobOut } from "@/lib/types";
@@ -770,22 +769,14 @@ function CreateActionsContent() {
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="sm:col-span-3">
                       <Label htmlFor="action-video-file">Screen recording</Label>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <input
-                          id="action-video-file"
-                          type="file"
-                          accept="video/*"
-                          disabled={uploading}
-                          onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
-                          className="block flex-1 text-sm text-neutral-600 file:mr-4 file:h-11 file:rounded-lg file:border-0 file:bg-primary-tint file:px-4 file:text-sm file:font-medium file:text-primary-hover hover:file:bg-primary/20"
-                        />
-                        <GoogleDriveImportButton
-                          kind="video"
-                          multiple={false}
-                          disabled={uploading}
-                          onFilesSelected={(files) => setVideoFile(files[0] ?? null)}
-                        />
-                      </div>
+                      <input
+                        id="action-video-file"
+                        type="file"
+                        accept="video/*"
+                        disabled={uploading}
+                        onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
+                        className="block w-full text-sm text-neutral-600 file:mr-4 file:h-11 file:rounded-lg file:border-0 file:bg-primary-tint file:px-4 file:text-sm file:font-medium file:text-primary-hover hover:file:bg-primary/20"
+                      />
                       {videoFile && <p className="mt-1.5 text-sm text-neutral-500">{videoFile.name}</p>}
                     </div>
                     <div>

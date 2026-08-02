@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
-import { GoogleDriveImportButton } from "@/components/GoogleDriveImportButton";
 import { api } from "@/lib/api";
 import { uploadToGCS } from "@/lib/gcs";
 import type { JobOut, ModelOut } from "@/lib/types";
@@ -179,22 +178,19 @@ function ProcessContent() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="sm:col-span-3">
                 <Label htmlFor="video-file">Screen recordings</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    id="video-file"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    multiple
-                    disabled={uploading}
-                    onChange={(e) => {
-                      addVideoFiles(Array.from(e.target.files ?? []));
-                      e.target.value = "";
-                    }}
-                    className="block flex-1 text-sm text-neutral-600 file:mr-4 file:h-11 file:rounded-lg file:border-0 file:bg-primary-tint file:px-4 file:text-sm file:font-medium file:text-primary-hover hover:file:bg-primary/20"
-                  />
-                  <GoogleDriveImportButton kind="video" multiple disabled={uploading} onFilesSelected={addVideoFiles} />
-                </div>
+                <input
+                  id="video-file"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  multiple
+                  disabled={uploading}
+                  onChange={(e) => {
+                    addVideoFiles(Array.from(e.target.files ?? []));
+                    e.target.value = "";
+                  }}
+                  className="block w-full text-sm text-neutral-600 file:mr-4 file:h-11 file:rounded-lg file:border-0 file:bg-primary-tint file:px-4 file:text-sm file:font-medium file:text-primary-hover hover:file:bg-primary/20"
+                />
                 {videoFiles.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {videoFiles.map((file, i) => (

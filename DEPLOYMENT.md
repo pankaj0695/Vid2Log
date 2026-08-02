@@ -283,9 +283,6 @@ docker build --platform linux/amd64 \
   --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=... \
   --build-arg NEXT_PUBLIC_API_BASE_URL=https://vid2log-api-xxxxx.a.run.app \
   --build-arg NEXT_PUBLIC_SITE_URL=https://vid2log-frontend-xxxxx.a.run.app \
-  --build-arg NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID=... \
-  --build-arg NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY=... \
-  --build-arg NEXT_PUBLIC_GOOGLE_DRIVE_APP_ID=... \
   -t $REGION-docker.pkg.dev/$PROJECT_ID/vid2log/frontend:latest .
 
 docker push $REGION-docker.pkg.dev/$PROJECT_ID/vid2log/frontend:latest
@@ -379,9 +376,7 @@ already committed, not something you need to do:
 - **`frontend/Dockerfile`**, **`frontend/.dockerignore`** — new multi-stage
   build producing that standalone image, with every `NEXT_PUBLIC_*` value
   wired through as a build arg.
-- **`frontend/package.json`** / **`frontend/package-lock.json`** — added
-  `sharp`, Next.js's recommended native image-optimization library for
-  production/self-hosted deployments (`next/image` is still used once, for
-  the Google Drive icon). The lockfile is already regenerated and committed,
-  so `frontend/Dockerfile`'s `npm ci` (which needs an exactly-matching
-  lockfile) works as-is.
+- **`frontend/package.json`** / **`frontend/package-lock.json`** — kept in
+  sync with each other; the lockfile is committed as-is, so `frontend/Dockerfile`'s
+  `npm ci` (which needs an exactly-matching lockfile) works without a manual
+  `npm install` step.

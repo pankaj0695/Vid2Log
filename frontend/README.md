@@ -28,12 +28,6 @@ identity — auth is Firebase, everything else goes through the API.
 - **Design system**: `frontend/.agents/skills/design-system/SKILL.md`
   ("dithered") — tokens live in `app/globals.css` as Tailwind v4 `@theme`
   values; reusable primitives are in `components/ui/`.
-- **Google Drive import**: `lib/googleDrive.ts` + `components/GoogleDriveImportButton.tsx`
-  — an alternative to picking a local file on the training and video-processing
-  pages. Downloads the picked file's bytes client-side and hands back a plain
-  `File`, so it drops straight into the same Cloud Storage upload path
-  (`lib/gcs.ts`) as a local file — the backend can't tell the difference. See
-  "Google Drive import setup" below.
 
 ## Setup
 
@@ -63,51 +57,6 @@ sign-in will just fail with a clear error until you fill in `.env.local`.
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Google Drive import setup (optional)
-
-Lets users pick training images / a video straight from Google Drive instead
-of their local disk. Skip this section entirely if you don't need it — the
-"Import from Google Drive" button just doesn't render when unconfigured.
-
-1. In [Google Cloud Console](https://console.cloud.google.com), select the
-   same project your Firebase project uses (Firebase projects are backed by
-   a GCP project of the same ID — Firebase Console → Project Settings shows
-   it).
-2. **APIs & Services → Library** — enable **Google Picker API** and
-   **Google Drive API**.
-3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-   → Application type **Web application**. Add `http://localhost:3000` (and
-   your production URL) under **Authorized JavaScript origins**. Copy the
-   Client ID into `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID`.
-4. **APIs & Services → Credentials → Create Credentials → API key**. Restrict
-   it (Application restrictions → HTTP referrers → add the same origins;
-   API restrictions → Google Picker API) and copy it into
-   `NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY`.
-5. Copy your **project number** (Cloud Console home dashboard, or IAM &
-   Admin → Settings) into `NEXT_PUBLIC_GOOGLE_DRIVE_APP_ID`.
-6. **APIs & Services → OAuth consent screen → Data Access → Add or remove
-   scopes** — filter for "Drive API" and add
-   `https://www.googleapis.com/auth/drive.readonly` ("See and download all
-   your Google Drive files"). This step is easy to miss and the symptom is
-   subtle: the Picker still opens and lets you browse/select files fine, but
-   every download afterward fails with `HTTP 403`. If you still hit that
-   error after adding the scope here, the improved error message
-   (`lib/googleDrive.ts` → `downloadDriveFile`) now includes Google's actual
-   reason string, not just the status code — check the browser console for
-   specifics (most commonly "Drive API has not been used in project ... or
-   it is disabled", meaning step 2 above still needs doing).
-7. If your OAuth consent screen is still in **Testing** mode, add the
-   Google accounts you'll test with under **Test users** — you already did
-   this if Google Sign-In via Firebase works, since it uses the same
-   consent screen. `drive.readonly` is a "sensitive" (not "restricted")
-   scope, so it works for test users immediately without Google's
-   verification review — that review is only required before you publish
-   the consent screen for use beyond your test user list.
-
-The button requests `drive.readonly` fresh on demand (only when clicked,
-never at login) and the token is never persisted — it's used for that one
-picker session plus the immediate downloads, then discarded.
-
 ## Pages
 
 | Route        | Access      | Purpose                                                            |
@@ -130,9 +79,9 @@ picker session plus the immediate downloads, then discarded.
 - `app/layout.tsx` — full metadata (Open Graph, Twitter card, keywords,
   icons, `metadataBase`) plus site-wide Organization JSON-LD.
 - `app/page.tsx` additionally carries its own `SoftwareApplication` JSON-LD.
-- `app/opengraph-image.tsx` — dynamically generated 1200×630 social-share
-  card (via `next/og`), used automatically for every route that doesn't
-  define its own.
+- `app/opengraph-image.png` — static 1200×630 social-share card (a real
+  product screenshot, not generated), used automatically for every route
+  that doesn't define its own.
 - `app/sitemap.ts` / `app/robots.ts` — the sitemap only lists `/`, `/login`,
   `/signup` (the only actually-public routes with unique content).
 - Every signed-in route (`/dashboard`, `/train`, `/process`, `/analytics`,

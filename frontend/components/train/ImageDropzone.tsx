@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { GoogleDriveImportButton } from "@/components/GoogleDriveImportButton";
 
 /** File picker + thumbnail grid for one class's training images. Recommends
  * 20–25 images (per the training methodology) without hard-blocking fewer —
@@ -65,15 +64,6 @@ export function ImageDropzone({
             addFiles(e.target.files);
             e.target.value = "";
           }}
-        />
-      </div>
-
-      <div className="mt-2 flex justify-end">
-        <GoogleDriveImportButton
-          kind="image"
-          multiple
-          disabled={disabled}
-          onFilesSelected={(driveFiles) => onChange([...files, ...driveFiles])}
         />
       </div>
 

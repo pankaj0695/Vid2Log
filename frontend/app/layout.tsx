@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { AnalyticsPageViewTracker } from "@/components/AnalyticsPageViewTracker";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const openSans = Open_Sans({
@@ -130,6 +131,7 @@ export default function RootLayout({
         />
         <ThemeProvider>
           <AuthProvider>
+            <AnalyticsPageViewTracker />
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />

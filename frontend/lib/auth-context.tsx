@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -20,6 +21,7 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
 import { api, ApiError } from "./api";
+import { identifyUser, trackEvent } from "./firebase-analytics";
 import type { UserProfile } from "./types";
 
 interface AuthContextValue {
@@ -73,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
+      // Ties every subsequent GA4 event to this user (or clears the tie on
+      // sign-out) — covers page refreshes and already-signed-in sessions,
+      // not just the explicit sign-in/sign-up calls below.
+      identifyUser(user?.uid ?? null);
       if (user) {
         await syncProfile(user.displayName);
       } else {
@@ -83,6 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [syncProfile]);
 
+  // Separate from the identifyUser() call above: `profile` (and its role)
+  // only resolves after syncProfile()'s own async round-trip, so this fires
+  // slightly later and layers the "role" GA4 user property on top of the
+  // uid that's already been set.
+  useEffect(() => {
+    if (firebaseUser && profile) {
+      identifyUser(firebaseUser.uid, { role: profile.role });
+    }
+  }, [firebaseUser, profile]);
+
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -90,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(cred.user, { displayName: displayName.trim() });
       }
       await syncProfile(displayName.trim() || null);
+      // "sign_up" is one of GA4's recommended event names — using it (with
+      // the right `method` param) instead of a made-up one gets automatic
+      // funnel/retention reporting in the Firebase/GA4 console for free.
+      trackEvent("sign_up", { method: "password" });
     } catch (err) {
       throw new Error(friendlyAuthError(err));
     }
@@ -98,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      trackEvent("login", { method: "password" });
     } catch (err) {
       throw new Error(friendlyAuthError(err));
     }
@@ -105,13 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const cred = await signInWithPopup(auth, googleProvider);
+      // Google sign-in creates the account on first use — there's no
+      // separate "sign up with Google" button — so `isNewUser` is what
+      // actually distinguishes a new signup from a returning login here.
+      const isNewUser = getAdditionalUserInfo(cred)?.isNewUser ?? false;
+      trackEvent(isNewUser ? "sign_up" : "login", { method: "google" });
     } catch (err) {
       throw new Error(friendlyAuthError(err));
     }
   }, []);
 
   const logout = useCallback(async () => {
+    trackEvent("logout");
     await signOut(auth);
   }, []);
 
