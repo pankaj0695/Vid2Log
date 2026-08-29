@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     app_env: str = "development"
 
+    # Cloud Run Job trigger. When cloud_run_job_name is set, every
+    # enqueue_*_job() call in queue_service.py also fires an execution of
+    # this Cloud Run Job (which runs `python -m app.worker --burst`) so the
+    # queue gets drained by a container that then exits — no always-on
+    # worker pool billing 24/7. Left empty for local dev, where you instead
+    # run `python -m app.worker` yourself in a separate terminal.
+    cloud_run_job_name: str = ""
+    cloud_run_region: str = ""
+    gcp_project_id: str = ""
+
     @property
     def cors_origin_list(self) -> List[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

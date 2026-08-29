@@ -188,8 +188,10 @@ gcloud run deploy vid2log-api \
   --allow-unauthenticated \
   --memory=2Gi \
   --cpu=2 \
-  --set-env-vars="REDIS_URL=$REDIS_URL,GCS_BUCKET_NAME=YOUR_BUCKET_NAME,FIREBASE_PROJECT_ID=$PROJECT_ID,CORS_ORIGINS=http://localhost:3000,APP_ENV=production"
+  --set-env-vars="REDIS_URL=$REDIS_URL,GCS_BUCKET_NAME=YOUR_BUCKET_NAME,FIREBASE_PROJECT_ID=$PROJECT_ID,CORS_ORIGINS=http://localhost:3000,APP_ENV=production,CLOUD_RUN_JOB_NAME=vid2log-worker-job,CLOUD_RUN_REGION=$REGION,GCP_PROJECT_ID=$PROJECT_ID"
 ```
+
+`CLOUD_RUN_JOB_NAME`/`CLOUD_RUN_REGION`/`GCP_PROJECT_ID` are what `queue_service.py`'s `_trigger_worker_execution()` uses to fire a Cloud Run Job execution each time something is enqueued — see step 7 below. Leaving `CLOUD_RUN_JOB_NAME` unset makes this a no-op (used for local dev only).
 
 Notes:
 - `--allow-unauthenticated` because the app already does its own auth (Firebase
@@ -209,59 +211,67 @@ Notes:
 Note the URL it prints (`https://vid2log-api-xxxxx.a.run.app`) — the frontend
 needs it.
 
-## 7. Deploy the RQ worker as a Cloud Run worker pool
+## 7. Deploy the RQ worker as a Cloud Run Job (scale-to-zero)
 
-The worker isn't an HTTP server — it long-polls Redis — so it doesn't fit
-Cloud Run's request-driven service model or Cloud Run Jobs' run-to-completion
-model. **Worker pools** (GA since April 2026) are built for exactly this: a
-long-running, non-HTTP process that Cloud Run keeps alive and can scale on
-queue depth.
+Previously this ran as a **worker pool** — an always-on process, billed
+24/7 whether or not anything was queued, since worker pools use manual/fixed
+instance counts rather than autoscaling to zero. `app/worker.py` now
+supports `--burst`: process everything currently in the queues, then exit.
+`queue_service.py`'s `_trigger_worker_execution()` fires a Cloud Run Job
+execution every time something is enqueued, so a container only runs (and
+bills) while there's actual work, and drops back to zero the moment the
+queue is drained.
 
-**Worker pools use a different VPC mechanism than regular Cloud Run
-services** — Direct VPC egress (`--network`/`--subnet`) instead of a
-Serverless VPC Access connector, so `--vpc-connector` (used for the API
-service in step 6) isn't a valid flag here. `--network=default` /
-`--subnet=default` assumes the project's default auto-mode VPC network,
-which auto-creates a `default` subnet in every region — the same underlying
-network `vid2log-connector` sits on, just reached without a connector
-resource in the middle.
+**Same VPC settings as the old worker pool** — direct VPC egress
+(`--network`/`--subnet`), not the `--vpc-connector` used by the API service
+in step 6, since that flag isn't valid for this resource type either.
 
 ```bash
-gcloud beta run worker-pools deploy vid2log-worker \
+gcloud run jobs create vid2log-worker-job \
   --image=$REGION-docker.pkg.dev/$PROJECT_ID/vid2log/backend:latest \
   --command="python" \
-  --args="-m,app.worker" \
+  --args="-m,app.worker,--burst" \
   --region=$REGION \
   --service-account=$SA_EMAIL \
   --network=default \
   --subnet=default \
   --vpc-egress=private-ranges-only \
-  --instances=1 \
   --memory=4Gi \
   --cpu=4 \
+  --task-timeout=6h \
+  --max-retries=1 \
   --set-env-vars="REDIS_URL=$REDIS_URL,GCS_BUCKET_NAME=YOUR_BUCKET_NAME,FIREBASE_PROJECT_ID=$PROJECT_ID"
 ```
 
-(`gcloud beta run worker-pools` may have graduated to `gcloud run worker-pools`
-without the `beta` prefix by the time you run this — try both if one errors
-with "unrecognized command".)
+Grant the API service's own service account permission to start executions
+of this job (it calls `run_v2.JobsClient().run_job()` from
+`_trigger_worker_execution()`):
+
+```bash
+gcloud run jobs add-iam-policy-binding vid2log-worker-job \
+  --region=$REGION \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/run.invoker"
+```
+
+If that role doesn't grant `run.jobs.run` in your project (Cloud Run's IAM
+model has shifted a few times), use `roles/run.developer` instead — broader,
+but guaranteed to include it.
 
 Notes:
-- Same image as the API (`backend/Dockerfile`'s default `CMD` is overridden
-  here to run `python -m app.worker` instead of `uvicorn`) — one image,
-  two deployables, exactly like `docker-compose.yml` does locally with `api`
-  and `worker` sharing a build but different `command:`.
-- `--instances=1` is **manual, fixed scaling** — unlike the API service,
-  this does NOT scale to zero, ever, even with no jobs queued. Worker pools
-  aren't request-triggered, so with 0 instances nothing would ever be
-  running to dequeue a job in the first place — this is an always-on cost,
-  not an autoscaling minimum. Raise it (or move to queue-depth-based
-  autoscaling once you have real traffic) if jobs back up.
-- `--memory=4Gi --cpu=4` — the worker is where TensorFlow/PyTorch/OpenCV
-  actually run inference, not just import; give it more headroom than the API.
-- No `--allow-unauthenticated` / no public URL at all — worker pools aren't
-  reachable from outside GCP, which is correct here; nothing should ever call
-  it directly.
+- Same image as the API and the old worker pool — only the entrypoint args
+  differ (`--burst` added).
+- `--task-timeout=6h` is a ceiling, not a target: a burst execution exits as
+  soon as the queues it started with are drained, however long or short that
+  takes. It only matters if several long training jobs (`job_timeout="2h"`
+  each) happen to be queued back to back — raise it if that's routine for you.
+- Running more than one execution concurrently is safe — RQ's dequeue is
+  atomic, so two executions racing to drain the same queues can't double-process
+  a job. No dedup/throttling needed on the trigger side.
+- No `--allow-unauthenticated` / no public URL — same as before, nothing
+  should call this except the API's own service account via the Jobs API.
+- To manually drain the queue without waiting for a trigger (e.g. testing,
+  or clearing a backlog): `gcloud run jobs execute vid2log-worker-job --region=$REGION --wait`.
 
 ## 8. Build, push, and deploy the frontend
 

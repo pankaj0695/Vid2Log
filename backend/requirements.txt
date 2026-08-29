@@ -5,6 +5,7 @@ python-multipart
 python-dotenv
 firebase-admin
 google-cloud-storage
+google-cloud-run
 redis
 rq
 opencv-python-headless

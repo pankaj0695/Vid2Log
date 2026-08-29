@@ -6,6 +6,13 @@ Run this as a separate process to actually execute queued jobs:
 Run more than one of these (more processes, or more containers/replicas) to
 process more videos/training jobs in parallel — that's the whole mechanism
 behind "process multiple videos simultaneously."
+
+    python -m app.worker --burst
+
+Process everything currently queued, then exit instead of blocking forever.
+This is the mode used in production: a Cloud Run Job runs this on each
+trigger from queue_service.py, drains the queues, and exits — so nothing
+bills while there's no work, unlike an always-on worker pool/replica.
 """
 import os
 import sys
@@ -92,6 +99,14 @@ WORKER_CLASS = SimpleWorker if sys.platform == "darwin" else Worker
 
 
 def main() -> None:
+    # --burst: process whatever is currently sitting in the queues, then
+    # exit, instead of blocking forever waiting for new jobs. This is what
+    # lets this same script run as a Cloud Run Job execution (triggered by
+    # queue_service.py each time something is enqueued) rather than an
+    # always-on worker pool that bills 24/7. Local/dev usage is unaffected —
+    # just don't pass the flag and it behaves exactly as before.
+    burst = "--burst" in sys.argv
+
     settings = get_settings()
 
     # Workers need the same external services configured as the API process.
@@ -102,8 +117,13 @@ def main() -> None:
 
     conn = Redis.from_url(settings.redis_url)
     worker = WORKER_CLASS(QUEUES, connection=conn)
-    log.info("Worker listening on queues: %s (worker_class=%s)", QUEUES, WORKER_CLASS.__name__)
-    worker.work(with_scheduler=False)
+    log.info(
+        "Worker listening on queues: %s (worker_class=%s, burst=%s)",
+        QUEUES,
+        WORKER_CLASS.__name__,
+        burst,
+    )
+    worker.work(burst=burst, with_scheduler=False)
 
 
 if __name__ == "__main__":

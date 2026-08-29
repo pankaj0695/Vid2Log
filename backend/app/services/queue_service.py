@@ -20,6 +20,7 @@ _redis_conn = None
 _video_queue: Queue = None
 _training_queue: Queue = None
 _action_discovery_queue: Queue = None
+_run_jobs_client = None
 
 
 def init_queues() -> None:
@@ -73,6 +74,51 @@ def get_action_discovery_queue() -> Queue:
 _TRANSIENT_RETRY = Retry(max=3, interval=[15, 60, 180])
 
 
+def _trigger_worker_execution() -> None:
+    """
+    Fire a Cloud Run Job execution to drain the queues (`python -m
+    app.worker --burst`), instead of relying on an always-on worker
+    pool/replica that bills whether or not anything is queued.
+
+    No-op locally: cloud_run_job_name is only set in production, so a
+    developer running the API against a local Redis just runs
+    `python -m app.worker` themselves in another terminal as before.
+
+    Failures here are logged, not raised. The job is already durably sitting
+    in Redis by the time this runs — a transient Cloud Run API hiccup
+    shouldn't fail the request that enqueued it, and the next enqueue call
+    (or `gcloud run jobs execute` by hand) will pick up anything left
+    waiting regardless.
+    """
+    global _run_jobs_client
+    settings = get_settings()
+    if not settings.cloud_run_job_name:
+        return
+    try:
+        from google.cloud import run_v2
+
+        if _run_jobs_client is None:
+            _run_jobs_client = run_v2.JobsClient()
+        name = (
+            f"projects/{settings.gcp_project_id}/locations/"
+            f"{settings.cloud_run_region}/jobs/{settings.cloud_run_job_name}"
+        )
+        # Fire-and-forget: run_job() returns as soon as the execution is
+        # accepted by Cloud Run — it does not block until the job finishes.
+        # Running more than one execution concurrently is safe: RQ's BRPOP
+        # dequeue is atomic, so two executions racing to drain the same
+        # queues can't both pick up the same job.
+        _run_jobs_client.run_job(name=name)
+        log.info("Triggered Cloud Run Job execution: %s", settings.cloud_run_job_name)
+    except Exception:
+        log.warning(
+            "Failed to trigger Cloud Run Job execution for %s — job stays "
+            "queued in Redis for the next trigger.",
+            settings.cloud_run_job_name,
+            exc_info=True,
+        )
+
+
 def enqueue_video_job(job_id: str) -> None:
     # Enqueued by DOTTED STRING, not a direct function reference — this is
     # deliberate, not a style choice. video_pipeline.py imports app.ml.*,
@@ -86,6 +132,7 @@ def enqueue_video_job(job_id: str) -> None:
     get_video_queue().enqueue(
         "app.services.video_pipeline.process_job", job_id, job_timeout="30m", retry=_TRANSIENT_RETRY
     )
+    _trigger_worker_execution()
 
 
 def enqueue_training_job(training_job_id: str) -> None:
@@ -97,6 +144,7 @@ def enqueue_training_job(training_job_id: str) -> None:
         job_timeout="2h",
         retry=_TRANSIENT_RETRY,
     )
+    _trigger_worker_execution()
 
 
 def enqueue_action_discovery_job(job_id: str) -> None:
@@ -111,3 +159,4 @@ def enqueue_action_discovery_job(job_id: str) -> None:
         job_timeout="30m",
         retry=_TRANSIENT_RETRY,
     )
+    _trigger_worker_execution()
