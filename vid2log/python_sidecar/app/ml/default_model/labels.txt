@@ -1,0 +1,7 @@
+0 ProblemStatement
+1 DayEndReport
+2 Faults
+3 Bulldozing
+4 GameWorkspace
+5 ProductPlacement
+6 ProductSelection

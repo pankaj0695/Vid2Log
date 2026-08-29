@@ -1,0 +1,46 @@
+# Trimmed from backend/requirements.txt — everything cloud-only (firebase-admin,
+# google-cloud-storage, redis, rq) is gone, since this runs entirely offline
+# on the user's own machine as a local subprocess, not a server.
+#
+# Also NOT included: pandas/scipy/torch/torchvision/transformers/hdbscan —
+# those belong to the action-discovery and SPM/DSM pattern-mining features,
+# which aren't wired up yet (see FLUTTER_OFFLINE_FEASIBILITY.md at the repo
+# root, Phase 3). Local model TRAINING (app/training_pipeline.py) is
+# implemented and needs nothing beyond what's already listed here —
+# tensorflow + scikit-learn cover it.
+fastapi
+uvicorn[standard]
+pydantic
+opencv-python-headless
+Pillow>=10.0,<13
+numpy
+tensorflow
+# NOTE: `tensorflow-metal` (Apple's Metal GPU plugin for Apple Silicon) is
+# deliberately NOT listed here. It's an optional accelerator, and its
+# released wheels routinely lag behind TensorFlow's — when the versions
+# don't line up, TF doesn't just skip the plugin, it hard-fails at import
+# with `NotFoundError: dlopen(... libmetal_plugin.dylib): Library not
+# loaded: @rpath/_pywrap_tensorflow_internal.so`, which takes the whole
+# sidecar down before it can serve a single request. CPU inference is
+# perfectly adequate here (a handful of 224x224 frames per second of
+# video), so a modest speedup isn't worth a dependency that can break the
+# app on a routine `pip install`. If you do want to try it later, pin both
+# tensorflow and tensorflow-metal to a known-compatible pair and test that
+# `python -c "import tensorflow"` works before relying on it.
+tf-keras
+scikit-learn
+# Listed explicitly even though scikit-learn already pulls it in: the DSM
+# analytics path (app/analytics.py) uses scipy.stats' two-sample tests
+# directly, and a direct import deserves a direct declaration rather than
+# relying on another package's dependency tree staying the way it is today.
+scipy
+joblib
+rapidfuzz
+# Python wrapper around the system `tesseract` OCR binary — see README.md
+# "Setup" for how to install the binary itself on Windows/macOS. Same
+# dependency the cloud backend has (app/ml/ocr.py is copied verbatim).
+pytesseract
+# Packaging only — freezes this sidecar into a standalone executable for
+# release builds (see vid2log_sidecar.spec and RELEASE.md at the repo
+# root). Not needed to run from source.
+pyinstaller
