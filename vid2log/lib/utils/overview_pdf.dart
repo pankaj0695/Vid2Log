@@ -1,4 +1,4 @@
-/// Formatted PDF for the Analytics Overview report — the offline
+/// Formatted PDF for the Analytics Overview report, the offline
 /// counterpart of the web app's "Download PDF" (frontend/lib/pdf.ts).
 ///
 /// Deliberately plain: a title block, the four summary figures, then the
@@ -69,7 +69,7 @@ Future<Uint8List> _build(OverviewPdfData data) async {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(36),
       build: (context) => [
-        pw.Text('vid2log — Analytics report',
+        pw.Text('vid2log, Analytics report',
             style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Text(
@@ -90,7 +90,7 @@ Future<Uint8List> _build(OverviewPdfData data) async {
         ),
         _sectionTitle('Per-action summary'),
         pw.Text(
-          'Sorted by total time spent — the actions that actually dominated these sessions, '
+          'Sorted by total time spent, the actions that actually dominated these sessions, '
           'not just the ones with the most short-lived scenes.',
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
         ),

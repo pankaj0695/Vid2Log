@@ -1,10 +1,10 @@
-/// Ported from frontend/app/video-logs/page.tsx — every finished video
+/// Ported from frontend/app/video-logs/page.tsx, every finished video
 /// log: view scenes inline, rename, export CSV, delete, plus importing a
 /// log that already exists as a CSV (produced by hand, exported from
 /// elsewhere, or exported from here and edited).
 ///
 /// The web version's "combine N logs into one CSV" is the one feature not
-/// here yet — it needs a combine endpoint on the sidecar, which is a pure
+/// here yet, it needs a combine endpoint on the sidecar, which is a pure
 /// addition rather than a blocker.
 library;
 
@@ -107,7 +107,7 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
   }
 
   /// Writes a two-row example CSV so it's obvious what shape an importable
-  /// log has — same columns the sidecar requires (see main.py's
+  /// log has, same columns the sidecar requires (see main.py's
   /// REQUIRED_IMPORT_COLUMNS) and the same ones Download CSV exports, so a
   /// template can be filled in and imported directly.
   Future<void> _downloadTemplate() async {
@@ -203,8 +203,8 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
             child: Text(
               'Already have a log? Import it as a CSV instead of processing a video.',
               style: TextStyle(color: VidColors.neutral500, fontSize: 13),
@@ -261,11 +261,11 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
                           children: [
                             Text(job.label,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                                style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 2),
                             Text(
-                              job.sceneCount != null ? '${job.sceneCount} scenes' : '—',
-                              style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                              job.sceneCount != null ? '${job.sceneCount} scenes' : 'N/A',
+                              style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                             ),
                           ],
                         ),
@@ -288,7 +288,7 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
                   ),
                   OutlinedButton(onPressed: () => _startRename(job), child: const Text('Rename')),
                   OutlinedButton(
-                    style: OutlinedButton.styleFrom(foregroundColor: VidColors.danger, side: const BorderSide(color: VidColors.danger)),
+                    style: OutlinedButton.styleFrom(foregroundColor: VidColors.danger, side: BorderSide(color: VidColors.danger)),
                     onPressed: () => _delete(job),
                     child: const Text('Delete'),
                   ),
@@ -296,8 +296,8 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
               ),
             ],
             if (isExpanded && job.scenes != null) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1, color: VidColors.neutral200),
               ),
               ConstrainedBox(

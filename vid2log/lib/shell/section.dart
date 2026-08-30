@@ -1,4 +1,4 @@
-/// Mirrors frontend/components/app-shell/Sidebar.tsx's `SectionId` union —
+/// Mirrors frontend/components/app-shell/Sidebar.tsx's `SectionId` union,
 /// same 7 sections, same order. "Admin" is intentionally left out: it only
 /// exists in the web app to manage *other* cloud accounts, and this app is
 /// a single local user with no accounts at all.
@@ -26,7 +26,7 @@ class SectionMeta {
   final String label;
   final IconData icon;
   /// False for sections whose sidecar backend doesn't exist yet (training,
-  /// action discovery, SPM/DSM analytics — see FLUTTER_OFFLINE_FEASIBILITY.md
+  /// action discovery, SPM/DSM analytics, see FLUTTER_OFFLINE_FEASIBILITY.md
   /// Phases 2-3). Still shown in the sidebar, but routes to a "coming soon"
   /// screen instead of a broken one.
   final bool implemented;

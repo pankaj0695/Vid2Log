@@ -4,7 +4,7 @@ library;
 
 import 'job.dart' show JobStatus, jobStatusFromString;
 
-/// Must match python_sidecar/app/main.py's DEFAULT_MODEL_ID — the sentinel
+/// Must match python_sidecar/app/main.py's DEFAULT_MODEL_ID, the sentinel
 /// id for the CNN bundled inside the app, which has no registry row.
 const kDefaultModelId = '__default__';
 
@@ -49,15 +49,35 @@ class TrainingProgress {
   double? get valAccuracy => (raw['val_accuracy'] as num?)?.toDouble();
   double? get loss => (raw['loss'] as num?)?.toDouble();
 
-  /// 0..1 while the CNN is training, null for stages with no measurable
-  /// fraction (OCR extraction, fusion tuning, saving) — those get an
-  /// indeterminate bar instead.
-  double? get fraction {
-    final e = epoch, total = epochs;
-    if (stage == 'training_cnn' && e != null && total != null && total > 0) {
-      return e / total;
+  /// Overall 0..1 completion estimate across the WHOLE job, not just
+  /// however far the current stage itself has gotten, so the UI can show a
+  /// single steadily-advancing bar and percentage instead of a bare
+  /// spinner. Neither pipeline reports a numeric percent for most stages,
+  /// but the stages always run in the same fixed order (see
+  /// action_discovery.py / training_pipeline.py), so mapping each one to a
+  /// fixed checkpoint (see [_kStageCheckpoints]) still gives real forward
+  /// motion, it just jumps between known checkpoints for stages with no
+  /// finer signal.
+  ///
+  /// `training_cnn` is the one stage with a real, continuously-advancing
+  /// signal (epoch out of total epochs), so it's interpolated between the
+  /// checkpoint just before it and its own rather than only jumping to its
+  /// checkpoint the instant training starts.
+  ///
+  /// Null only for a stage this app doesn't recognise, in which case the
+  /// UI falls back to an indeterminate (percentage-less) progress bar.
+  double? get overallFraction {
+    final checkpoint = _kStageCheckpoints[stage];
+    if (checkpoint == null) return null;
+
+    if (stage == 'training_cnn' && epoch != null && epochs != null && epochs! > 0) {
+      final i = _kTrainingStageOrder.indexOf('training_cnn');
+      final previousCheckpoint =
+          i > 0 ? (_kStageCheckpoints[_kTrainingStageOrder[i - 1]] ?? 0.0) : 0.0;
+      final epochFraction = (epoch! / epochs!).clamp(0.0, 1.0);
+      return previousCheckpoint + (checkpoint - previousCheckpoint) * epochFraction;
     }
-    return null;
+    return checkpoint;
   }
 
   String get label {
@@ -68,7 +88,7 @@ class TrainingProgress {
         return detail ?? 'Preparing dataset…';
       case 'training_cnn':
         final e = epoch, total = epochs;
-        if (e != null && total != null) return 'Training — epoch $e of $total';
+        if (e != null && total != null) return 'Training, epoch $e of $total';
         return 'Training…';
       case 'evaluating_cnn':
         return 'Evaluating on the test split…';
@@ -93,6 +113,41 @@ class TrainingProgress {
   }
 }
 
+/// Fixed checkpoint reached at the END of each stage, in run order, shared
+/// by both pipelines since a given job only ever reports stages from one
+/// of them. Values are hand-tuned relative weights (training's CNN epoch
+/// loop and the OCR/fusion stages typically dominate total run time far
+/// more than, say, "starting"), not measured averages.
+const Map<String, double> _kStageCheckpoints = {
+  'starting': 0.04,
+  // Action discovery pipeline (action_discovery.py).
+  'sampling': 0.28,
+  'embedding': 0.58,
+  'clustering': 0.8,
+  'writing_previews': 0.93,
+  // Training pipeline (training_pipeline.py).
+  'preparing': 0.1,
+  'training_cnn': 0.75,
+  'evaluating_cnn': 0.82,
+  'extracting_text': 0.88,
+  'tuning_fusion': 0.94,
+  'saving_model': 0.98,
+};
+
+/// Training stage keys in run order, used only to find the checkpoint
+/// immediately BEFORE `training_cnn` so its real epoch progress can be
+/// interpolated between two checkpoints instead of jumping straight to its
+/// own the instant training starts.
+const List<String> _kTrainingStageOrder = [
+  'starting',
+  'preparing',
+  'training_cnn',
+  'evaluating_cnn',
+  'extracting_text',
+  'tuning_fusion',
+  'saving_model',
+];
+
 /// Per-class precision/recall/F1/support from a metrics report.
 class ClassMetrics {
   const ClassMetrics({
@@ -115,7 +170,7 @@ class ClassMetrics {
       );
 }
 
-/// One evaluation report — the sidecar produces three of these per model
+/// One evaluation report, the sidecar produces three of these per model
 /// (CNN-only, text-only, and the fused combination).
 class EvalReport {
   const EvalReport({
@@ -155,7 +210,7 @@ class ModelMetrics {
   final EvalReport? cnnOnly;
 
   /// Null when the dataset didn't have enough usable OCR text to train a
-  /// text classifier at all — the CNN result stands on its own then.
+  /// text classifier at all, the CNN result stands on its own then.
   final EvalReport? textOnly;
   final EvalReport? combined;
 
@@ -245,7 +300,7 @@ class TrainingJob {
   }
 }
 
-/// One candidate action proposed by a discovery run — a cluster of visually
+/// One candidate action proposed by a discovery run, a cluster of visually
 /// similar frames, named "Action N" until a person renames it.
 class DiscoveredCluster {
   const DiscoveredCluster({
@@ -353,7 +408,7 @@ class ActionDatasetDetail {
   final String name;
   final String createdAt;
 
-  /// {action name: absolute image paths} — the exact shape
+  /// {action name: absolute image paths}, the exact shape
   /// ApiClient.startTraining's `dataset` argument takes.
   final Map<String, List<String>> actions;
 
@@ -385,7 +440,7 @@ class ModelInfo {
   final List<String> labels;
   final bool isActive;
 
-  /// True only for the bundled default — it has no registry row, so it
+  /// True only for the bundled default, it has no registry row, so it
   /// can't be renamed or deleted (the sidecar rejects both).
   final bool isBundled;
   final String createdAt;

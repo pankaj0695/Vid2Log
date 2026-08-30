@@ -1,6 +1,6 @@
 /// Job detail screen: polls GET /jobs/{id} while queued/processing, then
 /// renders the scene log and offers a CSV export (written straight to disk
-/// via a native save dialog — see _exportCsv below).
+/// via a native save dialog, see _exportCsv below).
 library;
 
 import 'dart:async';
@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../services/api_client.dart';
 import '../theme/colors.dart';
+import '../widgets/progress.dart';
 
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({
@@ -164,10 +165,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               const SizedBox(height: 16),
               Text(job.status == JobStatus.queued ? 'Queued…' : 'Processing…'),
               const SizedBox(height: 4),
-              const Text(
-                'Running locally — this can take a while for longer videos.',
+              Text(
+                'Running locally, this can take a while for longer videos.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 12),
               ),
+              if (job.status == JobStatus.processing) ...[
+                const SizedBox(height: 16),
+                const SizedBox(width: 220, child: VidProgressBar()),
+              ],
             ],
           ),
         );
@@ -178,7 +183,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 40, color: VidColors.danger),
+                Icon(Icons.error_outline, size: 40, color: VidColors.danger),
                 const SizedBox(height: 12),
                 Text(job.error ?? 'Job failed.', textAlign: TextAlign.center),
               ],
@@ -199,7 +204,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     Flexible(
                       child: Text(
                         _exportMessage!,
-                        style: const TextStyle(color: VidColors.neutral500, fontSize: 12),
+                        style: TextStyle(color: VidColors.neutral500, fontSize: 12),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

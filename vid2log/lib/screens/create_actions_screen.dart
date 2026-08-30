@@ -1,11 +1,11 @@
-/// Ported from frontend/app/create-actions/page.tsx — auto-discover action
+/// Ported from frontend/app/create-actions/page.tsx, auto-discover action
 /// classes from one demo video instead of hand-curating example images.
 ///
 /// Structure mirrors the web page one-for-one:
-///   * Two tabs when not reviewing — "Discover" (start a run + job history)
+///   * Two tabs when not reviewing, "Discover" (start a run + job history)
 ///     and "Saved datasets" (view / edit / delete).
 ///   * One shared review UI used for BOTH reviewing a just-finished
-///     discovery run and editing an already-saved dataset — they're the same
+///     discovery run and editing an already-saved dataset, they're the same
 ///     interaction (name, merge, add, drop, save), so they're the same
 ///     screen rather than two near-duplicates.
 ///   * Review is a two-column layout: action cards on the left, a sticky
@@ -15,12 +15,12 @@
 ///     that action's other images), removed individually, or DRAGGED from
 ///     one action card onto another to move them.
 ///
-/// Every image here is a plain absolute path — a discovery preview frame, an
+/// Every image here is a plain absolute path, a discovery preview frame, an
 /// image already in a saved dataset, or one just picked off disk are all
 /// the same kind of thing. That's what makes dragging between actions work
 /// regardless of origin, and lets one save endpoint serve both modes (see
 /// python_sidecar/app/main.py's SaveDatasetAction). They render straight
-/// from disk with Image.file — no HTTP round trip per thumbnail, since this
+/// from disk with Image.file, no HTTP round trip per thumbnail, since this
 /// is a desktop app reading its own machine.
 library;
 
@@ -34,18 +34,19 @@ import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
 import '../widgets/image_lightbox.dart';
+import '../widgets/progress.dart';
 import '../widgets/ui.dart';
 
 enum _Tab { discover, saved }
 
 /// Whether the review UI is looking at a fresh discovery run or an existing
-/// saved dataset — the only thing that differs is where Save writes to.
+/// saved dataset, the only thing that differs is where Save writes to.
 enum _ReviewMode { discover, edit }
 
 int _idCounter = 0;
 
 /// `Iterable.firstOrNull` lives in package:collection, which this app
-/// doesn't depend on — one tiny helper is cheaper than a dependency.
+/// doesn't depend on, one tiny helper is cheaper than a dependency.
 T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
   for (final item in items) {
     if (test(item)) return item;
@@ -98,7 +99,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
   List<DiscoveryJob>? _jobs;
   Timer? _pollTimer;
 
-  /// The run started from this screen — its review opens automatically the
+  /// The run started from this screen, its review opens automatically the
   /// moment it finishes, rather than making the user come back and click.
   String? _autoOpenJobId;
 
@@ -162,7 +163,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
         }
       }
     } catch (_) {
-      // Transient — the next tick retries, and the form stays usable.
+      // Transient, the next tick retries, and the form stays usable.
     }
   }
 
@@ -329,7 +330,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     draft.dispose();
   }
 
-  /// Folds every selected action into the first one, in selection order —
+  /// Folds every selected action into the first one, in selection order,
   /// the merged action keeps that first action's name.
   void _mergeSelected() {
     if (_selectedForMerge.length < 2) return;
@@ -367,14 +368,14 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     if (result == null) return;
     final picked = result.files.map((f) => f.path).whereType<String>();
     setState(() {
-      // Union, preserving order — re-picking a file the action already has
+      // Union, preserving order, re-picking a file the action already has
       // shouldn't duplicate it.
       draft.images = [...draft.images, ...picked.where((p) => !draft.images.contains(p))];
     });
   }
 
   /// Moves one image between actions. No-op when dropped back on its own
-  /// action, and a plain list move — nothing is copied or re-read.
+  /// action, and a plain list move, nothing is copied or re-read.
   void _moveImage(String imagePath, String fromActionId, String toActionId) {
     if (fromActionId == toActionId) return;
     setState(() {
@@ -401,12 +402,12 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     final usable = _drafts.where((d) => d.name.isNotEmpty && d.images.isNotEmpty).toList();
     if (usable.length < 2) {
       setState(() => _saveError =
-          'Keep at least 2 actions with images — a model needs 2 classes to tell apart.');
+          'Keep at least 2 actions with images, a model needs 2 classes to tell apart.');
       return;
     }
     final names = usable.map((d) => d.name).toList();
     if (names.toSet().length != names.length) {
-      setState(() => _saveError = 'Two actions have the same name — merge them or rename one.');
+      setState(() => _saveError = 'Two actions have the same name, merge them or rename one.');
       return;
     }
 
@@ -463,7 +464,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
       if (!mounted || _expandedDatasetId != dataset.datasetId) return;
       setState(() => _expandedActions = detail.actions);
     } catch (_) {
-      // Thumbnails are a nicety — the name/counts above still render.
+      // Thumbnails are a nicety, the name/counts above still render.
     }
   }
 
@@ -512,16 +513,22 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const PageHeader(
-                eyebrow: 'Create actions',
-                title: 'Auto-discover actions from a video',
-              ),
-              if (_reviewMode == null)
+        // Review mode gets its own layout (see _buildReview) so the
+        // "Manage actions" panel can stay fixed on screen instead of
+        // living inside the same scroll view as the action list. Every
+        // other tab keeps the simple single-scroll-view layout.
+        if (_reviewMode != null)
+          _buildReview()
+        else
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PageHeader(
+                  eyebrow: 'Create actions',
+                  title: 'Auto-discover actions from a video',
+                ),
                 VidTabs<_Tab>(
                   tabs: [
                     (_Tab.discover, 'Discover${activeCount > 0 ? ' ($activeCount active)' : ''}'),
@@ -530,15 +537,10 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                   active: _tab,
                   onChange: (t) => setState(() => _tab = t),
                 ),
-              if (_reviewMode != null)
-                _buildReview()
-              else if (_tab == _Tab.discover)
-                _buildDiscoverTab()
-              else
-                _buildSavedTab(),
-            ],
+                if (_tab == _Tab.discover) _buildDiscoverTab() else _buildSavedTab(),
+              ],
+            ),
           ),
-        ),
         if (_saving) _buildSavingOverlay(),
       ],
     );
@@ -553,11 +555,13 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
                 Text('Saving your dataset…',
                     style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 14),
+                const SizedBox(width: 220, child: VidProgressBar()),
               ],
             ),
           ),
@@ -579,7 +583,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const VidCardHeader(title: 'Choose a demo video'),
-                const Text(
+                Text(
                   'It samples frames, groups visually similar screens together, and proposes each '
                   'group as a candidate action for you to name and adjust.',
                   style: TextStyle(color: VidColors.neutral500, fontSize: 13, height: 1.5),
@@ -597,7 +601,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.movie_outlined, color: VidColors.neutral500),
+                        Icon(Icons.movie_outlined, color: VidColors.neutral500),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -608,7 +612,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                             ),
                           ),
                         ),
-                        const Icon(Icons.folder_open_rounded, size: 18, color: VidColors.neutral500),
+                        Icon(Icons.folder_open_rounded, size: 18, color: VidColors.neutral500),
                       ],
                     ),
                   ),
@@ -622,7 +626,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Min cluster size is the fewest frames a screen must appear in to count as its own '
                   'action. Lower it if distinct screens get lumped together; raise it if you get lots '
                   'of near-duplicate actions.',
@@ -634,7 +638,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                   child: FilledButton.icon(
                     onPressed: (_videoPath == null || _starting) ? null : _startDiscovery,
                     icon: _starting
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
@@ -651,7 +655,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text('Discovery jobs',
+        Text('Discovery jobs',
             style: TextStyle(color: VidColors.text, fontSize: 17, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         if (_jobs == null)
@@ -672,7 +676,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextField(controller: controller, enabled: !_starting, keyboardType: TextInputType.number),
@@ -699,14 +703,14 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                       children: [
                         Text(job.originalFilename,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: VidColors.text, fontWeight: FontWeight.w500)),
                         const SizedBox(height: 2),
                         Text(
                           job.clusters != null
                               ? '${job.clusters!.length} actions found'
                               : '${job.fps} fps · min cluster ${job.minClusterSize}',
-                          style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                          style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                         ),
                       ],
                     ),
@@ -722,24 +726,20 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                     IconButton(
                       tooltip: job.status == JobStatus.queued ? 'Cancel' : 'Delete',
                       onPressed: () => _deleteJob(job),
-                      icon: const Icon(Icons.close, size: 18, color: VidColors.neutral500),
+                      icon: Icon(Icons.close, size: 18, color: VidColors.neutral500),
                     ),
                   ],
                 ],
               ),
               if (job.status == JobStatus.processing) ...[
                 const SizedBox(height: 12),
-                Text(progress?.label ?? 'Working…',
-                    style: const TextStyle(color: VidColors.neutral600, fontSize: 13)),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: const LinearProgressIndicator(
-                      minHeight: 6, backgroundColor: VidColors.neutral200),
+                JobProgressPanel(
+                  label: progress?.label ?? 'Working…',
+                  fraction: progress?.overallFraction,
                 ),
                 if (_autoOpenJobId == job.discoveryJobId) ...[
-                  const SizedBox(height: 6),
-                  const Text('Opens for review automatically when done',
+                  const SizedBox(height: 8),
+                  Text('Opens for review automatically when done',
                       style: TextStyle(color: VidColors.neutral400, fontSize: 12)),
                 ],
               ],
@@ -756,21 +756,68 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
 
   // ── Review / edit ──
 
+  /// Two-column review layout: the page header + action list scroll on the
+  /// left; the "Manage actions" + Save/Cancel panel is pinned OUTSIDE that
+  /// scroll view in the top-right corner (with a top margin), so it stays
+  /// on screen and reachable no matter how far the list is scrolled.
   Widget _buildReview() {
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth > 900;
-      final list = _buildReviewList();
       final panel = _buildManagePanel();
 
       if (!wide) {
-        return Column(children: [panel, const SizedBox(height: 16), list]);
+        // Narrow window: no room for a fixed side column, so fall back to
+        // everything in one scroll view with the panel up top.
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PageHeader(
+                eyebrow: 'Create actions',
+                title: 'Auto-discover actions from a video',
+              ),
+              panel,
+              const SizedBox(height: 16),
+              _buildReviewList(),
+            ],
+          ),
+        );
       }
-      return Row(
+
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: list),
-          const SizedBox(width: 20),
-          SizedBox(width: 260, child: panel),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(28, 28, 28, 0),
+            child: PageHeader(
+              eyebrow: 'Create actions',
+              title: 'Auto-discover actions from a video',
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(child: _buildReviewList()),
+                  ),
+                  const SizedBox(width: 20),
+                  SizedBox(
+                    width: 260,
+                    // The top margin that keeps the panel from sitting
+                    // flush against the header above it.
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: panel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       );
     });
@@ -792,7 +839,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
               child: Text(
                 '${_reviewMode == _ReviewMode.discover ? "Reviewing actions from" : "Editing"} $_reviewSourceLabel',
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                style: TextStyle(color: VidColors.neutral500, fontSize: 13),
               ),
             ),
           ],
@@ -903,7 +950,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: VidColors.danger,
-                          side: const BorderSide(color: VidColors.danger),
+                          side: BorderSide(color: VidColors.danger),
                         ),
                         onPressed: _saving ? null : () => _removeAction(draft),
                         child: const Text('Delete'),
@@ -916,7 +963,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                       isDropTarget
                           ? 'Drop to move the image here'
                           : 'No images in this action yet.',
-                      style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                      style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                     )
                   else
                     Wrap(
@@ -956,8 +1003,10 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     );
   }
 
-  /// The sticky right-hand panel — merge/add always reachable without
-  /// scrolling back up, matching the web layout.
+  /// The "Manage actions" + Save/Cancel panel, pinned OUTSIDE the action
+  /// list's scroll view by [_buildReview] so it stays fixed on screen
+  /// (merge/add/save always reachable) instead of scrolling away with the
+  /// list, matching the intent of the web layout's sticky sidebar.
   Widget _buildManagePanel() {
     final mergeCount = _selectedForMerge.length;
     return Column(
@@ -966,8 +1015,8 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text('Manage actions',
                     style: TextStyle(
                         color: VidColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
@@ -982,7 +1031,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                 child: Text('Merge selected${mergeCount > 1 ? ' ($mergeCount)' : ''}'),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Tick two or more actions to merge them, or drag an image from one action onto another to move it.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.4),
               ),
@@ -1047,11 +1096,11 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                       Text(dataset.name,
                           overflow: TextOverflow.ellipsis,
                           style:
-                              const TextStyle(color: VidColors.text, fontWeight: FontWeight.w600)),
+                              TextStyle(color: VidColors.text, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(
                         '${dataset.actionCounts.length} action${dataset.actionCounts.length == 1 ? '' : 's'} · ${dataset.imageCount} images',
-                        style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                        style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                       ),
                     ],
                   ),
@@ -1069,7 +1118,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: VidColors.danger,
-                    side: const BorderSide(color: VidColors.danger),
+                    side: BorderSide(color: VidColors.danger),
                   ),
                   onPressed: () => _deleteDataset(dataset),
                   child: const Text('Delete'),
@@ -1077,8 +1126,8 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
               ],
             ),
             if (expanded) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 child: Divider(height: 1, color: VidColors.neutral200),
               ),
               if (_expandedActions == null)
@@ -1093,7 +1142,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('${e.key}  (${e.value.length})',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: VidColors.text, fontWeight: FontWeight.w500, fontSize: 13)),
                           const SizedBox(height: 8),
                           Wrap(
@@ -1119,7 +1168,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text('+${e.value.length - 12}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: VidColors.neutral500, fontSize: 13)),
                                 ),
                             ],
@@ -1135,7 +1184,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
   }
 }
 
-/// What travels with a dragged thumbnail — which image, and which action
+/// What travels with a dragged thumbnail, which image, and which action
 /// it's leaving, so the receiving card knows what to move and from where.
 class _DragPayload {
   const _DragPayload({required this.imagePath, required this.actionId});
@@ -1218,7 +1267,7 @@ class _Thumb extends StatelessWidget {
           height: 96,
           color: VidColors.neutral100,
           alignment: Alignment.center,
-          child: const Icon(Icons.broken_image_outlined, size: 18, color: VidColors.neutral400),
+          child: Icon(Icons.broken_image_outlined, size: 18, color: VidColors.neutral400),
         ),
       ),
     );

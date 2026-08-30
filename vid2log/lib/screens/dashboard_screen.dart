@@ -1,7 +1,7 @@
-/// Ported from frontend/app/dashboard/page.tsx — Overview/Models/Activity
+/// Ported from frontend/app/dashboard/page.tsx, Overview/Models/Activity
 /// tabs. Two things are simplified versus the web version, both because
 /// there's genuinely less to show in a single-user offline app: "Trained /
-/// registered models" is always 1 (the bundled default — see
+/// registered models" is always 1 (the bundled default, see
 /// python_sidecar/app/ml/default_model/), since local training isn't wired
 /// up yet (Models screen explains this), and the Activity feed only has
 /// video jobs, not training jobs, for the same reason.
@@ -202,11 +202,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(job.label,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                                  style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                               const SizedBox(height: 2),
                               Text(
-                                job.sceneCount != null ? '${job.sceneCount} scenes' : '—',
-                                style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                                job.sceneCount != null ? '${job.sceneCount} scenes' : 'N/A',
+                                style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                               ),
                             ],
                           ),
@@ -232,8 +232,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _QuickAction(label: 'Process a video', onTap: () => widget.onNavigate(AppSection.process)),
           const SizedBox(height: 8),
           _QuickAction(label: 'Run pattern analysis', onTap: () => widget.onNavigate(AppSection.analytics)),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Divider(height: 1, color: VidColors.neutral200),
           ),
           TextButton(onPressed: _load, child: const Text('Refresh')),
@@ -276,13 +276,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Text(m.name,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: VidColors.text, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 2),
                             Text(
                               '${m.labels.length} action${m.labels.length == 1 ? '' : 's'}'
                               '${headline != null ? ' · test acc ${(headline.accuracy * 100).toStringAsFixed(1)}%' : ''}',
-                              style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                              style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                             ),
                           ],
                         ),
@@ -322,9 +322,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(job.originalFilename,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                                  style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                               Text(_fmtDate(job.createdAt),
-                                  style: const TextStyle(color: VidColors.neutral500, fontSize: 13)),
+                                  style: TextStyle(color: VidColors.neutral500, fontSize: 13)),
                             ],
                           ),
                         ),

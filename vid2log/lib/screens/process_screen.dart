@@ -1,11 +1,12 @@
-/// Ported from frontend/app/process/page.tsx — "New job" / "Job history"
+/// Ported from frontend/app/process/page.tsx, "New job" / "Job history"
 /// tabs. Simplified versus the web version in ways that follow directly
-/// from being local instead of cloud: no upload step or progress bar (the
-/// video's already a real file on disk — see api_client.dart's createJob
-/// docstring), and "Cancel" on a queued job just deletes it (the sidecar
-/// has no separate cancel endpoint, but DELETE on a queued job achieves the
-/// same thing — see python_sidecar/app/main.py's 409-only-while-processing
-/// guard).
+/// from being local instead of cloud: no upload step (the video's already
+/// a real file on disk, see api_client.dart's createJob docstring), and
+/// "Cancel" on a queued job just deletes it (the sidecar has no separate
+/// cancel endpoint, but DELETE on a queued job achieves the same thing,
+/// see python_sidecar/app/main.py's 409-only-while-processing guard). The
+/// sidecar doesn't report per-video progress, so a processing job only
+/// gets an indeterminate bar, no percentage.
 library;
 
 import 'package:file_picker/file_picker.dart';
@@ -15,6 +16,7 @@ import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
 import '../shell/section.dart';
+import '../widgets/progress.dart';
 import '../widgets/ui.dart';
 
 enum _ProcessTab { newJob, history }
@@ -48,7 +50,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
   String? _jobsError;
 
   /// null = "Use active model" (the sidecar resolves it at job-creation
-  /// time — see main.py's create_job), matching the web app's default
+  /// time, see main.py's create_job), matching the web app's default
   /// dropdown option.
   String? _selectedModelId;
   List<ModelInfo>? _models;
@@ -186,7 +188,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const VidCardHeader(title: 'New job'),
-            const Text('Video file', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
+            Text('Video file', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
             const SizedBox(height: 6),
             InkWell(
               onTap: _submitting ? null : _pickVideo,
@@ -200,7 +202,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.movie_outlined, color: VidColors.neutral500),
+                    Icon(Icons.movie_outlined, color: VidColors.neutral500),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -211,14 +213,14 @@ class _ProcessScreenState extends State<ProcessScreen> {
                         ),
                       ),
                     ),
-                    const Icon(Icons.folder_open_rounded, size: 18, color: VidColors.neutral500),
+                    Icon(Icons.folder_open_rounded, size: 18, color: VidColors.neutral500),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Processed entirely on this machine — the file never leaves your disk.',
+            Text(
+              'Processed entirely on this machine, the file never leaves your disk.',
               style: TextStyle(color: VidColors.neutral500, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -229,7 +231,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Model',
+                      Text('Model',
                           style: TextStyle(
                               color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 6),
@@ -261,7 +263,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Sampling FPS',
+                    Text('Sampling FPS',
                         style: TextStyle(
                             color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 6),
@@ -283,7 +285,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
               child: FilledButton.icon(
                 onPressed: (_videoPath == null || _submitting) ? null : _submit,
                 icon: _submitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
                     : const Icon(Icons.play_arrow),
                 label: Text(_submitting ? 'Starting…' : 'Process video'),
@@ -331,11 +333,11 @@ class _ProcessScreenState extends State<ProcessScreen> {
                                 children: [
                                   Text(job.label,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                                      style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                                   const SizedBox(height: 2),
                                   Text(
-                                    job.sceneCount != null ? '${job.sceneCount} scenes' : '—',
-                                    style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                                    job.sceneCount != null ? '${job.sceneCount} scenes' : 'N/A',
+                                    style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                                   ),
                                 ],
                               ),
@@ -350,6 +352,10 @@ class _ProcessScreenState extends State<ProcessScreen> {
                             ],
                           ],
                         ),
+                        if (job.status == JobStatus.processing) ...[
+                          const SizedBox(height: 12),
+                          const VidProgressBar(),
+                        ],
                         if (job.status == JobStatus.failed && job.error != null) ...[
                           const SizedBox(height: 10),
                           DangerAlert(message: job.error!),

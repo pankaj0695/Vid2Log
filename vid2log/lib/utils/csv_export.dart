@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 
-/// One titled block within a multi-section report — the Overview export
+/// One titled block within a multi-section report, the Overview export
 /// stacks several of these into one file (summary, per-action, per-video,
 /// source breakdown), matching the web app's downloadMultiSectionCsv.
 class CsvSection {
@@ -19,7 +19,7 @@ class CsvSection {
 String _escape(Object? value) {
   final s = value?.toString() ?? '';
   // Quote whenever the value could otherwise break the row apart. Embedded
-  // quotes are doubled, per RFC 4180 — Excel and Sheets both rely on this.
+  // quotes are doubled, per RFC 4180, Excel and Sheets both rely on this.
   if (s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r')) {
     return '"${s.replaceAll('"', '""')}"';
   }

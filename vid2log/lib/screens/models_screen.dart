@@ -1,4 +1,4 @@
-/// Ported from frontend/app/models/page.tsx + models/[id]/page.tsx — the
+/// Ported from frontend/app/models/page.tsx + models/[id]/page.tsx, the
 /// local Model Registry: every locally-trained model plus the bundled
 /// default, with activate/rename/delete and the full metrics report
 /// (CNN-only vs text-only vs fused, per-action precision/recall/F1, and the
@@ -133,7 +133,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
             action: IconButton(
               tooltip: 'Refresh',
               onPressed: _load,
-              icon: const Icon(Icons.refresh_rounded, color: VidColors.neutral500),
+              icon: Icon(Icons.refresh_rounded, color: VidColors.neutral500),
             ),
           ),
           if (_error != null) ...[DangerAlert(message: _error!), const SizedBox(height: 16)],
@@ -185,7 +185,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
                             child: Text(
                               model.name,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: VidColors.text,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
@@ -204,7 +204,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
                       Text(
                         '${model.labels.length} action${model.labels.length == 1 ? '' : 's'}'
                         '${headline != null ? ' · test accuracy ${(headline.accuracy * 100).toStringAsFixed(1)}%' : ''}',
-                        style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                        style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                       ),
                     ],
                   ),
@@ -228,7 +228,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: VidColors.danger,
-                      side: const BorderSide(color: VidColors.danger),
+                      side: BorderSide(color: VidColors.danger),
                     ),
                     onPressed: () => _delete(model),
                     child: const Text('Delete'),
@@ -238,7 +238,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
             ),
             if (model.isBundled) ...[
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Ships inside the app and is used whenever no trained model is active. It can\'t be renamed or deleted.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
               ),
@@ -250,7 +250,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
   }
 }
 
-/// Full metrics report for one model — the three-way comparison the cloud
+/// Full metrics report for one model, the three-way comparison the cloud
 /// backend produces (see backend/app/services/training_pipeline.py's
 /// docstring for why all three are reported, not just the best one).
 class ModelDetailScreen extends StatelessWidget {
@@ -292,14 +292,14 @@ class ModelDetailScreen extends StatelessWidget {
                     VidCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text('No OCR text fusion',
                               style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w600)),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
                             'There wasn\'t enough readable on-screen text across the training '
                             'images to train a text classifier, so this model classifies on '
-                            'pixels alone. That\'s expected for screens with little or no text — '
+                            'pixels alone. That\'s expected for screens with little or no text, '
                             'the CNN result stands on its own.',
                             style: TextStyle(color: VidColors.neutral500, fontSize: 13, height: 1.5),
                           ),
@@ -337,8 +337,8 @@ class ModelDetailScreen extends StatelessWidget {
           Text(
             'Measured on ${metrics.headline?.testSetSize ?? 0} held-out test images the model '
             'never saw during training or tuning.'
-            '${alpha != null ? ' α weights the CNN against the OCR text classifier — 1.0 means CNN only.' : ''}',
-            style: const TextStyle(color: VidColors.neutral500, fontSize: 13, height: 1.5),
+            '${alpha != null ? ' α weights the CNN against the OCR text classifier, 1.0 means CNN only.' : ''}',
+            style: TextStyle(color: VidColors.neutral500, fontSize: 13, height: 1.5),
           ),
         ],
       ),
@@ -364,11 +364,11 @@ class _MiniStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: VidColors.neutral500, fontSize: 12)),
+          Text(label, style: TextStyle(color: VidColors.neutral500, fontSize: 12)),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: VidColors.text,
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -391,7 +391,7 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The confusion matrix is indexed by the model's own label order, which
-    // the training pipeline fixes as sorted(class_names) — so read the axis
+    // the training pipeline fixes as sorted(class_names), so read the axis
     // labels off the per-class report in that same sorted order rather than
     // assuming `labels` arrives sorted.
     final axis = report.perClass.keys.toList()..sort();
@@ -432,8 +432,8 @@ class _ReportCard extends StatelessWidget {
           ),
           if (report.confusionMatrix.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Text(
-              'Confusion matrix — rows are the true action, columns what the model predicted.',
+            Text(
+              'Confusion matrix, rows are the true action, columns what the model predicted.',
               style: TextStyle(color: VidColors.neutral500, fontSize: 12),
             ),
             const SizedBox(height: 8),
@@ -471,7 +471,7 @@ class _ConfusionMatrix extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: VidColors.neutral500, fontSize: 11),
+                    style: TextStyle(color: VidColors.neutral500, fontSize: 11),
                   ),
                 )),
           ],
@@ -489,7 +489,7 @@ class _ConfusionMatrix extends StatelessWidget {
                     i < axis.length ? axis[i] : '',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: VidColors.neutral500, fontSize: 11),
+                    style: TextStyle(color: VidColors.neutral500, fontSize: 11),
                   ),
                 ),
                 ...rowEntry.value.asMap().entries.map((cell) {

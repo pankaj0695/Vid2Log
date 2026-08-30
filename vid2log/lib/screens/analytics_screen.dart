@@ -1,16 +1,16 @@
-/// Ported from frontend/app/analytics/page.tsx — four tabs over the scene
+/// Ported from frontend/app/analytics/page.tsx, four tabs over the scene
 /// logs already stored locally:
 ///
-///   Overview — descriptive stats across whichever logs you pick (totals,
+///   Overview, descriptive stats across whichever logs you pick (totals,
 ///              per-action time/confidence, scenes per log, which tier
 ///              decided each label), computed on demand rather than over
 ///              "recent" logs, so the numbers always describe a set you
 ///              consciously chose.
-///   SPM      — frequent activity sub-sequences: common workflows, loops
+///   SPM     , frequent activity sub-sequences: common workflows, loops
 ///              and rework, with S-support and I-support.
-///   DSM      — the same mining run on two groups, then a statistical test
+///   DSM     , the same mining run on two groups, then a statistical test
 ///              per pattern: what's *significantly* different between them.
-///   Timeline — each selected log's actions laid out along time.
+///   Timeline, each selected log's actions laid out along time.
 ///
 /// Overview is computed here in Dart from scene rows the sidecar already
 /// returns; SPM/DSM run in the sidecar (python_sidecar/app/analytics.py)
@@ -26,11 +26,12 @@ import '../utils/csv_export.dart';
 import '../utils/overview_pdf.dart';
 import '../widgets/charts.dart';
 import '../widgets/log_select_list.dart';
+import '../widgets/progress.dart';
 import '../widgets/ui.dart';
 
 enum _Tab { overview, spm, dsm, timeline }
 
-/// Human labels for the `source` field on a scene row — which tier of the
+/// Human labels for the `source` field on a scene row, which tier of the
 /// hybrid classifier decided that label (see the sidecar's
 /// app/ml/hybrid_classifier.py).
 const Map<String, String> _sourceLabels = {
@@ -98,7 +99,7 @@ class _OverviewResult {
 /// Colours for every action seen across ALL logs, assigned by index over a
 /// stable sorted order. Building it once at this level (rather than per
 /// chart or per timeline) is what makes an action the same colour
-/// everywhere on the page — and building it from a sorted list rather than
+/// everywhere on the page, and building it from a sorted list rather than
 /// hashing is what guarantees two actions never collide onto one colour.
 Map<String, Color> _actionColorsFor(Iterable<Job> logs) {
   final actions = <String>{};
@@ -376,7 +377,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _runSpm() async {
     if (_spmSelection.length < 2) {
-      setState(() => _spmError = 'Select at least 2 logs — patterns are found across logs.');
+      setState(() => _spmError = 'Select at least 2 logs, patterns are found across logs.');
       return;
     }
     setState(() {
@@ -425,11 +426,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
     // The pickers already make overlap impossible (each disables the
     // other's selection), but a stale-state bug here would silently produce
-    // a meaningless comparison rather than an error — cheap to keep.
+    // a meaningless comparison rather than an error, cheap to keep.
     final overlap = _groupA.intersection(_groupB);
     if (overlap.isNotEmpty) {
       setState(() => _dsmError =
-          '${overlap.length} log(s) are in both groups — remove them from one side.');
+          '${overlap.length} log(s) are in both groups, remove them from one side.');
       return;
     }
     setState(() {
@@ -550,19 +551,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 const VidCardHeader(title: 'Generate report'),
                 Text(
                   '${_overviewSelection.length} log${_overviewSelection.length == 1 ? '' : 's'} selected',
-                  style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                  style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                 ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: _overviewRunning ? null : _runOverview,
                   icon: _overviewRunning
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
                       : const Icon(Icons.insights_outlined, size: 18),
                   label: Text(_overviewRunning ? 'Analysing…' : 'Generate report'),
                 ),
+                if (_overviewRunning) ...[
+                  const SizedBox(height: 12),
+                  const VidProgressBar(),
+                ],
                 if (_overviewError != null) ...[
                   const SizedBox(height: 12),
                   DangerAlert(message: _overviewError!),
@@ -587,7 +592,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Download this report as a spreadsheet or a formatted PDF.',
                   style: TextStyle(color: VidColors.neutral500, fontSize: 13),
@@ -632,8 +637,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const VidCardHeader(title: 'Per-action summary'),
-                const Text(
-                  'Sorted by total time spent — the actions that actually dominated these '
+                Text(
+                  'Sorted by total time spent, the actions that actually dominated these '
                   'sessions, not just the ones with the most short-lived scenes.',
                   style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
                 ),
@@ -680,7 +685,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const VidCardHeader(title: 'Action distribution'),
-                const Text('Scene count per action.',
+                Text('Scene count per action.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12)),
                 const SizedBox(height: 16),
                 BarChart(
@@ -698,7 +703,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const VidCardHeader(title: 'Time spent per action'),
-                const Text('Minutes of video attributed to each action.',
+                Text('Minutes of video attributed to each action.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12)),
                 const SizedBox(height: 16),
                 BarChart(
@@ -720,8 +725,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const VidCardHeader(title: 'Classification source'),
-                  const Text(
-                    'How each scene\'s action was decided — the CNN alone, a keyword rule, '
+                  Text(
+                    'How each scene\'s action was decided, the CNN alone, a keyword rule, '
                     'or CNN + OCR fusion.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
                   ),
@@ -740,7 +745,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const VidCardHeader(title: 'Scenes per log'),
-                  const Text(
+                  Text(
                     'Spot outlier logs that dominate the aggregate numbers above.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12),
                   ),
@@ -813,7 +818,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Text('Sort by',
+                      Text('Sort by',
                           style: TextStyle(color: VidColors.neutral500, fontSize: 13)),
                       const SizedBox(width: 12),
                       DropdownButton<String>(
@@ -834,7 +839,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     FilledButton.icon(
                       onPressed: _spmRunning ? null : _runSpm,
                       icon: _spmRunning
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
@@ -851,6 +856,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ],
                   ],
                 ),
+                if (_spmRunning) ...[
+                  const SizedBox(height: 12),
+                  const VidProgressBar(),
+                ],
                 if (_spmError != null) ...[
                   const SizedBox(height: 12),
                   DangerAlert(message: _spmError!),
@@ -877,7 +886,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     action: VidBadge(
                         label: '${_spmResults!.length} found', tone: BadgeTone.primary),
                   ),
-                  const Text(
+                  Text(
                     'S-support is how many of the selected logs contain the pattern at all. '
                     'I-support is how many times it occurs per log on average, counting logs where it never occurs.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
@@ -926,8 +935,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Compare two sets of logs — for example high- vs low-performing sessions. '
+              Text(
+                'Compare two sets of logs, for example high- vs low-performing sessions. '
                 'Each group\'s own frequent patterns are mined, then tested for a significant '
                 'difference in how often they occur between the groups.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 13, height: 1.5),
@@ -1005,9 +1014,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Tests compare each pattern\'s per-log occurrence counts between the two groups. '
-                'Some (mood, ansari) test spread rather than average — which test is appropriate is your call.',
+                'Some (mood, ansari) test spread rather than average, which test is appropriate is your call.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
               ),
               const SizedBox(height: 10),
@@ -1025,7 +1034,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   FilledButton.icon(
                     onPressed: _dsmRunning ? null : _runDsm,
                     icon: _dsmRunning
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
@@ -1042,6 +1051,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ],
                 ],
               ),
+              if (_dsmRunning) ...[
+                const SizedBox(height: 12),
+                const VidProgressBar(),
+              ],
               if (_dsmError != null) ...[
                 const SizedBox(height: 12),
                 DangerAlert(message: _dsmError!),
@@ -1084,8 +1097,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 DataCell(Text(p.pValue < 0.001
                                     ? p.pValue.toStringAsExponential(2)
                                     : p.pValue.toStringAsFixed(4))),
-                                DataCell(Text(p.isupportLeftMean?.toStringAsFixed(2) ?? '—')),
-                                DataCell(Text(p.isupportRightMean?.toStringAsFixed(2) ?? '—')),
+                                DataCell(Text(p.isupportLeftMean?.toStringAsFixed(2) ?? 'N/A')),
+                                DataCell(Text(p.isupportRightMean?.toStringAsFixed(2) ?? 'N/A')),
                                 DataCell(VidBadge(
                                   label: p.group == 'left' ? 'Group A' : 'Group B',
                                   tone: p.group == 'left'
@@ -1162,7 +1175,7 @@ class _OptionControllers {
         slidingWindowMin: int.tryParse(windowMin.text.trim()) ?? 1,
         slidingWindowMax: int.tryParse(windowMax.text.trim()) ?? 4,
         minGap: int.tryParse(minGap.text.trim()) ?? 0,
-        // Blank means "unlimited" — the sidecar treats a null max_gap as
+        // Blank means "unlimited", the sidecar treats a null max_gap as
         // plain PrefixSpan matching.
         maxGap: maxGap.text.trim().isEmpty ? null : int.tryParse(maxGap.text.trim()),
         minInstanceSupport: double.tryParse(minInstanceSupport.text.trim()) ?? 0.0,
@@ -1203,7 +1216,7 @@ class _OptionControllers {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Gap is how many other actions may sit between two consecutive steps of a pattern. '
             'A max gap keeps patterns to things that actually happened close together.',
             style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
@@ -1237,7 +1250,7 @@ class _LabeledField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         child,
@@ -1263,7 +1276,7 @@ class _AdvancedToggle extends StatelessWidget {
             Icon(expanded ? Icons.expand_less : Icons.expand_more,
                 size: 18, color: VidColors.neutral500),
             const SizedBox(width: 6),
-            const Text('Advanced options',
+            Text('Advanced options',
                 style: TextStyle(
                     color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
           ],
@@ -1297,10 +1310,10 @@ class _PatternChips extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(pattern[i],
-                  style: const TextStyle(color: VidColors.text, fontSize: 12)),
+                  style: TextStyle(color: VidColors.text, fontSize: 12)),
             ),
             if (i < pattern.length - 1)
-              const Icon(Icons.arrow_right_alt, size: 14, color: VidColors.neutral400),
+              Icon(Icons.arrow_right_alt, size: 14, color: VidColors.neutral400),
           ],
         ],
       ),
@@ -1345,11 +1358,11 @@ class _TimelineCard extends StatelessWidget {
             title: job.label,
             action: Text(
               '${scenes.length} scenes · ${_formatSeconds(total)}',
-              style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+              style: TextStyle(color: VidColors.neutral500, fontSize: 13),
             ),
           ),
           if (segments.isEmpty)
-            const Text('No scenes in this log.',
+            Text('No scenes in this log.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 13))
           else
             GanttTimeline(

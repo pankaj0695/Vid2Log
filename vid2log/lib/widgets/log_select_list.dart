@@ -1,4 +1,4 @@
-/// Ported from frontend/components/analytics/JobSelectList.tsx — the
+/// Ported from frontend/components/analytics/JobSelectList.tsx, the
 /// checkbox list of finished logs that all four Analytics tabs share, with
 /// shift-click range selection and select-all/none.
 library;
@@ -27,7 +27,7 @@ class LogSelectList extends StatefulWidget {
   final String label;
   final double height;
 
-  /// Logs that can't be picked here — used by DSM, where a log already in
+  /// Logs that can't be picked here, used by DSM, where a log already in
   /// one group must not be selectable in the other. Blocking it at the
   /// point of selection is clearer than letting it be chosen and then
   /// rejecting the whole run afterwards.
@@ -41,7 +41,7 @@ class LogSelectList extends StatefulWidget {
 }
 
 class _LogSelectListState extends State<LogSelectList> {
-  /// Anchor for shift-click range selection — the last row clicked without
+  /// Anchor for shift-click range selection, the last row clicked without
   /// shift held.
   int? _anchorIndex;
 
@@ -96,13 +96,13 @@ class _LogSelectListState extends State<LogSelectList> {
           children: [
             Text(
               widget.label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500),
             ),
             const SizedBox(width: 8),
             Text(
               '${widget.selected.length} selected',
-              style: const TextStyle(color: VidColors.neutral400, fontSize: 12),
+              style: TextStyle(color: VidColors.neutral400, fontSize: 12),
             ),
             const Spacer(),
             TextButton(
@@ -124,7 +124,7 @@ class _LogSelectListState extends State<LogSelectList> {
             border: Border.all(color: VidColors.neutral200),
           ),
           child: widget.jobs.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     'No finished logs yet.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 13),
@@ -165,7 +165,7 @@ class _LogSelectListState extends State<LogSelectList> {
                             ),
                             Text(
                               '${job.sceneCount ?? 0}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: VidColors.neutral500, fontSize: 12, fontFamily: 'monospace'),
                             ),
                           ],
@@ -187,7 +187,7 @@ class _LogSelectListState extends State<LogSelectList> {
                 ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Shift-click to select a range.',
           style: TextStyle(color: VidColors.neutral400, fontSize: 11),
         ),

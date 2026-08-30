@@ -13,6 +13,7 @@ import 'services/sidecar_service.dart';
 import 'shell/app_shell.dart';
 import 'shell/section.dart';
 import 'theme/app_theme.dart';
+import 'theme/colors.dart';
 
 void main() {
   runApp(const Vid2LogApp());
@@ -36,12 +37,12 @@ class _Vid2LogAppState extends State<Vid2LogApp> with WidgetsBindingObserver {
     _sidecar = SidecarService();
     _apiClient = ApiClient(
       baseUrl: _sidecar.baseUrl,
-      // Gate every request on the sidecar actually being up — see
+      // Gate every request on the sidecar actually being up, see
       // ApiClient.waitUntilReady's doc comment for why this matters on a
       // cold start.
       waitUntilReady: _sidecar.waitUntilReady,
     );
-    // Fire the sidecar up as soon as the app launches — every screen's own
+    // Fire the sidecar up as soon as the app launches, every screen's own
     // status indicator (sidebar's bottom row, plus the failure banner in
     // AppShell) reflects _sidecar.stateStream live, so the UI doesn't need
     // to block on this.
@@ -50,7 +51,7 @@ class _Vid2LogAppState extends State<Vid2LogApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Make sure a stray python process never outlives the Flutter window —
+    // Make sure a stray python process never outlives the Flutter window,
     // desktop apps get `detached` right before process exit.
     if (state == AppLifecycleState.detached) {
       _sidecar.stop();
@@ -68,17 +69,25 @@ class _Vid2LogAppState extends State<Vid2LogApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Vid2Log',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      home: HomeShell(sidecar: _sidecar, apiClient: _apiClient),
+    // Rebuilds the whole tree whenever the light/dark toggle flips (see
+    // shell/sidebar.dart), so buildAppTheme() and every VidColors.* getter
+    // re-resolve against the new palette.
+    return ValueListenableBuilder<Brightness>(
+      valueListenable: VidTheme.brightness,
+      builder: (context, brightness, _) {
+        return MaterialApp(
+          title: 'Vid2Log',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          home: HomeShell(sidecar: _sidecar, apiClient: _apiClient),
+        );
+      },
     );
   }
 }
 
 /// Owns which sidebar section is active and renders the matching screen
-/// inside the shared AppShell chrome — the Flutter equivalent of the web
+/// inside the shared AppShell chrome, the Flutter equivalent of the web
 /// app's per-route pages all wrapping themselves in the same <AppShell>
 /// (see frontend/components/app-shell/AppShell.tsx).
 class HomeShell extends StatefulWidget {

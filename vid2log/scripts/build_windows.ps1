@@ -100,7 +100,8 @@ $IsccCandidates = @(
 )
 $Iscc = $IsccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $Iscc) {
-    $Iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue)?.Source
+    $IsccCmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($IsccCmd) { $Iscc = $IsccCmd.Source }
 }
 
 if ($Iscc) {

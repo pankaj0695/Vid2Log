@@ -1,4 +1,4 @@
-/// Chart primitives ported from frontend/components/ui/charts.tsx — bar,
+/// Chart primitives ported from frontend/components/ui/charts.tsx, bar,
 /// horizontal bar, donut, and the Gantt-style scene timeline. Same
 /// dependency-free approach as the web version: everything is drawn with
 /// plain Flutter widgets/CustomPaint, no charting package.
@@ -31,7 +31,7 @@ const List<Color> kCategoryPalette = [
 /// exactly the thing a categorical colour scale must never do. Index-based
 /// assignment guarantees the first eight are distinct, and past that this
 /// generates additional evenly-spaced hues instead of wrapping around the
-/// palette — so a log with 20 actions still gets 20 visually distinct
+/// palette, so a log with 20 actions still gets 20 visually distinct
 /// colours (the web version wraps at 8; this is a deliberate improvement,
 /// not a divergence in behaviour).
 ///
@@ -65,7 +65,7 @@ class ChartDatum {
   final String? hint;
 }
 
-/// Vertical bar chart — charts.tsx's BarChart.
+/// Vertical bar chart, charts.tsx's BarChart.
 class BarChart extends StatelessWidget {
   const BarChart({super.key, required this.data, this.colors, this.height = 200});
 
@@ -93,7 +93,7 @@ class BarChart extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text('${d.value}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: VidColors.neutral500, fontSize: 11, fontFamily: 'monospace')),
                   const SizedBox(height: 4),
                   Tooltip(
@@ -112,7 +112,7 @@ class BarChart extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: VidColors.neutral500, fontSize: 11),
+                    style: TextStyle(color: VidColors.neutral500, fontSize: 11),
                   ),
                 ],
               ),
@@ -124,7 +124,7 @@ class BarChart extends StatelessWidget {
   }
 }
 
-/// Ranked horizontal bars — charts.tsx's HorizontalBarChart. Labels get the
+/// Ranked horizontal bars, charts.tsx's HorizontalBarChart. Labels get the
 /// full row width and wrap instead of truncating, since a long pattern or
 /// filename cropped mid-way defeats the point of showing it.
 class HorizontalBarChart extends StatelessWidget {
@@ -151,10 +151,10 @@ class HorizontalBarChart extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(d.label,
-                        style: const TextStyle(color: VidColors.text, fontSize: 12)),
+                        style: TextStyle(color: VidColors.text, fontSize: 12)),
                   ),
                   Text(d.hint ?? '${d.value}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: VidColors.neutral500, fontSize: 11, fontFamily: 'monospace')),
                 ],
               ),
@@ -177,7 +177,7 @@ class HorizontalBarChart extends StatelessWidget {
   }
 }
 
-/// Donut chart with a legend — charts.tsx's DonutChart.
+/// Donut chart with a legend, charts.tsx's DonutChart.
 class DonutChart extends StatelessWidget {
   const DonutChart({super.key, required this.data, this.colors, this.size = 132});
 
@@ -227,10 +227,10 @@ class DonutChart extends StatelessWidget {
                     Expanded(
                       child: Text(d.label,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: VidColors.text, fontSize: 13)),
+                          style: TextStyle(color: VidColors.text, fontSize: 13)),
                     ),
                     Text('$pct%',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: VidColors.neutral500,
                             fontSize: 12,
                             fontFamily: 'monospace')),
@@ -306,7 +306,7 @@ class TimelineSegment {
   final String detail;
 }
 
-/// Gantt-style scene timeline — charts.tsx's GanttTimeline. Segments are
+/// Gantt-style scene timeline, charts.tsx's GanttTimeline. Segments are
 /// positioned by their real start/end times (not just stacked by duration),
 /// so gaps and pacing read correctly, with a time axis beneath and the
 /// non-hovered segments dimmed while pointing at one.
@@ -393,7 +393,7 @@ class _GanttTimelineState extends State<GanttTimeline> {
                         .clamp(0.0, constraints.maxWidth - 42),
                     child: Text(
                       _clock(total * i / widget.tickCount),
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: VidColors.neutral500, fontSize: 10, fontFamily: 'monospace'),
                     ),
                   ),
@@ -420,7 +420,7 @@ class _GanttTimelineState extends State<GanttTimeline> {
                       const SizedBox(width: 6),
                       Text(label,
                           style:
-                              const TextStyle(color: VidColors.neutral600, fontSize: 12)),
+                              TextStyle(color: VidColors.neutral600, fontSize: 12)),
                     ],
                   ))
               .toList(),

@@ -1,4 +1,4 @@
-/// New job screen: pick a video already on disk (no upload — the sidecar
+/// New job screen: pick a video already on disk (no upload, the sidecar
 /// reads the path directly, see api_client.dart's createJob docstring),
 /// set a sampling rate, and submit.
 library;

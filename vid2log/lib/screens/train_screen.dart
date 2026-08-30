@@ -1,16 +1,16 @@
-/// Ported from frontend/app/train/page.tsx — "Train" / "Training jobs"
+/// Ported from frontend/app/train/page.tsx, "Train" / "Training jobs"
 /// tabs. Two differences from the web version, both because this is a
 /// desktop app reading the user's own disk rather than a browser uploading
 /// to the cloud:
 ///
 ///   * Primary dataset input is a FOLDER whose subfolders are action names
-///     (POST /train/scan-folder) — the layout Teachable-Machine-style
+///     (POST /train/scan-folder), the layout Teachable-Machine-style
 ///     datasets already use, and far faster than adding images per action
 ///     when they're already organised on disk. A per-action "Add images…"
 ///     picker is still there for tweaking afterwards.
 ///   * Nothing is uploaded. The dataset is a list of absolute paths the
 ///     sidecar reads in place (see python_sidecar/app/training_pipeline.py),
-///     so there's no upload progress to show — the job starts instantly and
+///     so there's no upload progress to show, the job starts instantly and
 ///     progress is all real training progress.
 library;
 
@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
+import '../widgets/progress.dart';
 import '../widgets/ui.dart';
 
 enum _TrainTab { build, jobs }
@@ -63,7 +64,7 @@ class _TrainScreenState extends State<TrainScreen> {
   void initState() {
     super.initState();
     _loadJobs();
-    // Poll only while something is actually running — see _loadJobs.
+    // Poll only while something is actually running, see _loadJobs.
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       final hasActive = _jobs?.any(
             (j) => j.status == JobStatus.queued || j.status == JobStatus.processing,
@@ -139,7 +140,7 @@ class _TrainScreenState extends State<TrainScreen> {
     final newPaths = result.files.map((f) => f.path).whereType<String>();
     setState(() {
       final existing = _actions[index].imagePaths;
-      // Union, preserving order — re-picking a file the action already has
+      // Union, preserving order, re-picking a file the action already has
       // shouldn't duplicate it into the dataset.
       final merged = <String>[...existing, ...newPaths.where((p) => !existing.contains(p))];
       _actions[index] = _actions[index].copyWith(imagePaths: merged);
@@ -147,7 +148,7 @@ class _TrainScreenState extends State<TrainScreen> {
   }
 
   /// Pulls a saved action-discovery dataset straight in as the dataset to
-  /// train on — the sidecar stores those in subfolder-per-action layout and
+  /// train on, the sidecar stores those in subfolder-per-action layout and
   /// returns absolute paths, so this is a pass-through with no conversion
   /// (see create_actions_screen.dart, and main.py's
   /// GET /actions/datasets/{id}).
@@ -163,7 +164,7 @@ class _TrainScreenState extends State<TrainScreen> {
     if (!mounted) return;
     if (datasets.isEmpty) {
       setState(() => _formError =
-          'No saved datasets yet — use Create actions to discover actions from a demo video first.');
+          'No saved datasets yet, use Create actions to discover actions from a demo video first.');
       return;
     }
 
@@ -373,7 +374,7 @@ class _TrainScreenState extends State<TrainScreen> {
                     FilledButton.icon(
                       onPressed: _scanning ? null : _importFolder,
                       icon: _scanning
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
@@ -395,9 +396,9 @@ class _TrainScreenState extends State<TrainScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _sourceFolder == null
-                      ? 'Import a folder with one subfolder per action, or a dataset you built in Create actions. Files are read where they are — nothing is copied or uploaded.'
+                      ? 'Import a folder with one subfolder per action, or a dataset you built in Create actions. Files are read where they are, nothing is copied or uploaded.'
                       : 'Imported from $_sourceFolder',
-                  style: const TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
+                  style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
                 ),
                 if (_actions.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -405,7 +406,7 @@ class _TrainScreenState extends State<TrainScreen> {
                   const SizedBox(height: 12),
                   Text(
                     '$usableCount action${usableCount == 1 ? '' : 's'} · $totalImages image${totalImages == 1 ? '' : 's'}',
-                    style: const TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500),
+                    style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ],
               ],
@@ -417,7 +418,7 @@ class _TrainScreenState extends State<TrainScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const VidCardHeader(title: 'Model'),
-                const Text('Name', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text('Name', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _modelNameController,
@@ -437,7 +438,7 @@ class _TrainScreenState extends State<TrainScreen> {
                           color: VidColors.neutral500,
                         ),
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           'Advanced (optional)',
                           style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500),
                         ),
@@ -457,7 +458,7 @@ class _TrainScreenState extends State<TrainScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'The dataset is split 70/15/15 into train/validation/test. The test split is never seen during training or tuning, so the accuracy you get back is a real held-out measurement.',
                     style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
                   ),
@@ -472,7 +473,7 @@ class _TrainScreenState extends State<TrainScreen> {
                   child: FilledButton.icon(
                     onPressed: _submitting ? null : _submit,
                     icon: _submitting
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: VidColors.ink))
@@ -492,7 +493,7 @@ class _TrainScreenState extends State<TrainScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(label, style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -522,13 +523,13 @@ class _TrainScreenState extends State<TrainScreen> {
                 children: [
                   Text(action.name,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                      style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 2),
                   Text(
                     action.imagePaths.isEmpty
                         ? 'No images yet'
                         : '${action.imagePaths.length} image${action.imagePaths.length == 1 ? '' : 's'}'
-                            '${thin ? ' — needs at least 3' : ''}',
+                            '${thin ? ', needs at least 3' : ''}',
                     style: TextStyle(
                       color: thin ? VidColors.warning : VidColors.neutral500,
                       fontSize: 13,
@@ -541,12 +542,12 @@ class _TrainScreenState extends State<TrainScreen> {
             IconButton(
               tooltip: 'Rename',
               onPressed: () => _renameAction(index),
-              icon: const Icon(Icons.edit_outlined, size: 18, color: VidColors.neutral500),
+              icon: Icon(Icons.edit_outlined, size: 18, color: VidColors.neutral500),
             ),
             IconButton(
               tooltip: 'Remove',
               onPressed: () => setState(() => _actions.removeAt(index)),
-              icon: const Icon(Icons.close, size: 18, color: VidColors.neutral500),
+              icon: Icon(Icons.close, size: 18, color: VidColors.neutral500),
             ),
           ],
         ),
@@ -590,11 +591,11 @@ class _TrainScreenState extends State<TrainScreen> {
                     children: [
                       Text(job.modelName,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
+                          style: TextStyle(color: VidColors.text, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 2),
                       Text(
                         '${job.actionCount} actions · ${job.imageCount} images · ${job.epochs} epochs',
-                        style: const TextStyle(color: VidColors.neutral500, fontSize: 13),
+                        style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                       ),
                     ],
                   ),
@@ -604,29 +605,20 @@ class _TrainScreenState extends State<TrainScreen> {
             ),
             if (job.status == JobStatus.processing && progress != null) ...[
               const SizedBox(height: 14),
-              Text(progress.label, style: const TextStyle(color: VidColors.neutral600, fontSize: 13)),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: progress.fraction,
-                  minHeight: 6,
-                  backgroundColor: VidColors.neutral200,
-                ),
-              ),
+              JobProgressPanel(label: progress.label, fraction: progress.overallFraction),
               if (progress.accuracy != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   'train acc ${(progress.accuracy! * 100).toStringAsFixed(1)}%'
                   '${progress.valAccuracy != null ? ' · val acc ${(progress.valAccuracy! * 100).toStringAsFixed(1)}%' : ''}',
-                  style: const TextStyle(color: VidColors.neutral500, fontSize: 12, fontFamily: 'monospace'),
+                  style: TextStyle(color: VidColors.neutral500, fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ],
             if (job.status == JobStatus.queued) ...[
               const SizedBox(height: 12),
-              const Text(
-                'Waiting for the local engine — training starts once any running job finishes.',
+              Text(
+                'Waiting for the local engine, training starts once any running job finishes.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 13),
               ),
             ],
@@ -641,7 +633,7 @@ class _TrainScreenState extends State<TrainScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'on ${headline.testSetSize} held-out images',
-                    style: const TextStyle(color: VidColors.neutral500, fontSize: 12),
+                    style: TextStyle(color: VidColors.neutral500, fontSize: 12),
                   ),
                 ],
               ),

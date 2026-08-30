@@ -1,9 +1,9 @@
-/// Ported from frontend/components/app-shell/AppShell.tsx — sidebar +
+/// Ported from frontend/components/app-shell/AppShell.tsx, sidebar +
 /// topbar chrome shared by every screen, with the actual page content
 /// slotted in as [child]. Also surfaces a full-width banner when the
 /// sidecar has failed to start, since every screen in this app is useless
 /// without it (unlike the web app, there's no separate "is the backend up"
-/// concern to show — the sidecar IS the backend).
+/// concern to show, the sidecar IS the backend).
 library;
 
 import 'package:flutter/material.dart';
@@ -34,7 +34,7 @@ class AppShell extends StatelessWidget {
       backgroundColor: VidColors.bg,
       body: Row(
         children: [
-          Sidebar(active: section, onSelect: onSelectSection, sidecar: sidecar),
+          Sidebar(active: section, onSelect: onSelectSection),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -42,7 +42,7 @@ class AppShell extends StatelessWidget {
                 Container(
                   height: 52,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: VidColors.surface,
                     border: Border(bottom: BorderSide(color: VidColors.neutral200)),
                   ),
@@ -50,7 +50,7 @@ class AppShell extends StatelessWidget {
                     children: [
                       Text(
                         meta.label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: VidColors.neutral500,
@@ -88,12 +88,12 @@ class _SidecarFailureBanner extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           child: Row(
             children: [
-              const Icon(Icons.error_outline, color: VidColors.danger, size: 18),
+              Icon(Icons.error_outline, color: VidColors.danger, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Local engine failed to start: ${sidecar.lastError ?? "unknown error"}',
-                  style: const TextStyle(color: VidColors.danger, fontSize: 13),
+                  style: TextStyle(color: VidColors.danger, fontSize: 13),
                 ),
               ),
               TextButton(

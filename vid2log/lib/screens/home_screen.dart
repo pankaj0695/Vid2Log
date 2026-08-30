@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final jobs = _jobs ?? [];
     if (jobs.isEmpty) {
       return const Center(
-        child: Text('No jobs yet — tap "New job" to process a video.'),
+        child: Text('No jobs yet, tap "New job" to process a video.'),
       );
     }
     return RefreshIndicator(
@@ -182,7 +182,7 @@ class _SidecarStatusBar extends StatelessWidget {
         switch (state) {
           case SidecarState.running:
             color = Colors.green;
-            label = 'Local engine running — fully offline';
+            label = 'Local engine running, fully offline';
             break;
           case SidecarState.starting:
             color = Colors.orange;

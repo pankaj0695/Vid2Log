@@ -1,5 +1,5 @@
 /// Shared UI primitives ported from the web app's design system
-/// (frontend/components/ui/*.tsx) — Card, Badge/StatusBadge, Tabs,
+/// (frontend/components/ui/*.tsx), Card, Badge/StatusBadge, Tabs,
 /// PageHeader, EmptyState, StatCard, plus a new ComingSoonCard for the
 /// sections that don't have a working sidecar backend yet (see
 /// train_screen.dart / create_actions_screen.dart / analytics_screen.dart).
@@ -15,7 +15,7 @@ import '../theme/colors.dart';
 // separate `import '../theme/colors.dart';` line.
 export '../theme/colors.dart';
 
-/// frontend/components/ui/Card.tsx — a bordered, softly-rounded panel; the
+/// frontend/components/ui/Card.tsx, a bordered, softly-rounded panel; the
 /// design system uses borders instead of shadows for resting-state depth.
 class VidCard extends StatelessWidget {
   const VidCard({
@@ -57,7 +57,7 @@ class VidCardHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: VidColors.text,
@@ -70,7 +70,7 @@ class VidCardHeader extends StatelessWidget {
   }
 }
 
-/// frontend/components/ui/Section.tsx's PageHeader — small-caps eyebrow +
+/// frontend/components/ui/Section.tsx's PageHeader, small-caps eyebrow +
 /// large title + optional trailing action button.
 class PageHeader extends StatelessWidget {
   const PageHeader({
@@ -97,7 +97,7 @@ class PageHeader extends StatelessWidget {
               children: [
                 Text(
                   eyebrow.toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8,
@@ -107,7 +107,7 @@ class PageHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
                     color: VidColors.text,
@@ -124,7 +124,7 @@ class PageHeader extends StatelessWidget {
   }
 }
 
-/// frontend/components/ui/Tabs.tsx — a row of pill tabs; the active one
+/// frontend/components/ui/Tabs.tsx, a row of pill tabs; the active one
 /// gets a primary-tint fill (same visual language as the sidebar's active
 /// nav item).
 class VidTabs<T> extends StatelessWidget {
@@ -175,23 +175,23 @@ class VidTabs<T> extends StatelessWidget {
 
 enum BadgeTone { primary, secondary, success, warning, danger, neutral }
 
-const Map<BadgeTone, Color> _badgeBg = {
-  BadgeTone.primary: VidColors.primaryTint,
-  BadgeTone.secondary: VidColors.secondaryTint,
-  BadgeTone.success: VidColors.successTint,
-  BadgeTone.warning: VidColors.warningTint,
-  BadgeTone.danger: VidColors.dangerTint,
-  BadgeTone.neutral: VidColors.neutral100,
-};
+Map<BadgeTone, Color> get _badgeBg => {
+      BadgeTone.primary: VidColors.primaryTint,
+      BadgeTone.secondary: VidColors.secondaryTint,
+      BadgeTone.success: VidColors.successTint,
+      BadgeTone.warning: VidColors.warningTint,
+      BadgeTone.danger: VidColors.dangerTint,
+      BadgeTone.neutral: VidColors.neutral100,
+    };
 
-const Map<BadgeTone, Color> _badgeFg = {
-  BadgeTone.primary: VidColors.primaryHover,
-  BadgeTone.secondary: VidColors.secondaryHover,
-  BadgeTone.success: VidColors.success,
-  BadgeTone.warning: VidColors.warning,
-  BadgeTone.danger: VidColors.danger,
-  BadgeTone.neutral: VidColors.neutral700,
-};
+Map<BadgeTone, Color> get _badgeFg => {
+      BadgeTone.primary: VidColors.primaryHover,
+      BadgeTone.secondary: VidColors.secondaryHover,
+      BadgeTone.success: VidColors.success,
+      BadgeTone.warning: VidColors.warning,
+      BadgeTone.danger: VidColors.danger,
+      BadgeTone.neutral: VidColors.neutral700,
+    };
 
 /// frontend/components/ui/Badge.tsx
 class VidBadge extends StatelessWidget {
@@ -228,7 +228,7 @@ class VidBadge extends StatelessWidget {
   }
 }
 
-/// frontend/components/ui/Badge.tsx's StatusBadge — maps job status
+/// frontend/components/ui/Badge.tsx's StatusBadge, maps job status
 /// strings to a consistent tone (see python_sidecar/app/db.py for the
 /// status values this handles: queued/processing/done/failed).
 class StatusBadge extends StatelessWidget {
@@ -273,7 +273,7 @@ class EmptyStateWidget extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: VidColors.text,
@@ -284,7 +284,7 @@ class EmptyStateWidget extends StatelessWidget {
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: VidColors.neutral500, fontSize: 14),
+                style: TextStyle(color: VidColors.neutral500, fontSize: 14),
               ),
             ],
             if (action != null) ...[
@@ -311,11 +311,11 @@ class StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: VidColors.neutral500, fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: VidColors.neutral500, fontSize: 14, fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'monospace',
               fontSize: 32,
               fontWeight: FontWeight.w600,
@@ -329,7 +329,7 @@ class StatCard extends StatelessWidget {
 }
 
 /// New: placeholder for sections whose sidecar backend isn't implemented
-/// yet (training, action discovery, SPM/DSM analytics — see
+/// yet (training, action discovery, SPM/DSM analytics, see
 /// FLUTTER_OFFLINE_FEASIBILITY.md Phases 2-3). Styled to match the rest of
 /// the app rather than reading as a broken/unfinished page.
 class ComingSoonCard extends StatelessWidget {
@@ -367,13 +367,13 @@ class ComingSoonCard extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: VidColors.text),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: VidColors.text),
               ),
               const SizedBox(height: 8),
               Text(
                 description,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: VidColors.neutral500, fontSize: 14, height: 1.5),
+                style: TextStyle(color: VidColors.neutral500, fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 16),
               VidBadge(label: phase, tone: BadgeTone.secondary),
@@ -385,7 +385,7 @@ class ComingSoonCard extends StatelessWidget {
   }
 }
 
-/// frontend/components/ui/Alert.tsx (danger tone only — the only one used
+/// frontend/components/ui/Alert.tsx (danger tone only, the only one used
 /// so far in this app).
 class DangerAlert extends StatelessWidget {
   const DangerAlert({super.key, required this.message});
@@ -401,7 +401,7 @@ class DangerAlert extends StatelessWidget {
         color: VidColors.dangerTint,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(message, style: const TextStyle(color: VidColors.danger, fontSize: 14)),
+      child: Text(message, style: TextStyle(color: VidColors.danger, fontSize: 14)),
     );
   }
 }

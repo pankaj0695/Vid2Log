@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 
 ThemeData buildAppTheme() {
+  final brightness = VidTheme.brightness.value;
   final base = ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: brightness,
   );
 
   return base.copyWith(
@@ -17,7 +18,7 @@ ThemeData buildAppTheme() {
     dividerColor: VidColors.neutral200,
     splashFactory: InkRipple.splashFactory,
     colorScheme: base.colorScheme.copyWith(
-      brightness: Brightness.dark,
+      brightness: brightness,
       primary: VidColors.primary,
       onPrimary: VidColors.ink,
       secondary: VidColors.secondary,
@@ -34,27 +35,27 @@ ThemeData buildAppTheme() {
           displayColor: VidColors.text,
         )
         .copyWith(
-          headlineMedium: const TextStyle(
+          headlineMedium: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w700,
             color: VidColors.text,
             letterSpacing: -0.2,
           ),
-          titleLarge: const TextStyle(
+          titleLarge: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: VidColors.text,
           ),
-          bodyMedium: const TextStyle(
+          bodyMedium: TextStyle(
             fontSize: 14,
             color: VidColors.text,
           ),
-          bodySmall: const TextStyle(
+          bodySmall: TextStyle(
             fontSize: 13,
             color: VidColors.neutral500,
           ),
         ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: VidColors.surface,
       foregroundColor: VidColors.text,
       elevation: 0,
@@ -65,7 +66,7 @@ ThemeData buildAppTheme() {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: VidColors.neutral200),
+        side: BorderSide(color: VidColors.neutral200),
       ),
     ),
     dialogTheme: DialogThemeData(
@@ -78,17 +79,17 @@ ThemeData buildAppTheme() {
       fillColor: VidColors.neutral100,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: VidColors.neutral200),
+        borderSide: BorderSide(color: VidColors.neutral200),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: VidColors.neutral200),
+        borderSide: BorderSide(color: VidColors.neutral200),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: VidColors.primary),
+        borderSide: BorderSide(color: VidColors.primary),
       ),
-      hintStyle: const TextStyle(color: VidColors.neutral500),
+      hintStyle: TextStyle(color: VidColors.neutral500),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -102,7 +103,7 @@ ThemeData buildAppTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: VidColors.text,
-        side: const BorderSide(color: VidColors.neutral300),
+        side: BorderSide(color: VidColors.neutral300),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       ),
@@ -113,20 +114,20 @@ ThemeData buildAppTheme() {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
-    iconTheme: const IconThemeData(color: VidColors.neutral500),
+    iconTheme: IconThemeData(color: VidColors.neutral500),
     dataTableTheme: DataTableThemeData(
-      headingTextStyle: const TextStyle(
+      headingTextStyle: TextStyle(
         color: VidColors.neutral500,
         fontWeight: FontWeight.w600,
         fontSize: 13,
       ),
-      dataTextStyle: const TextStyle(color: VidColors.text, fontSize: 13),
+      dataTextStyle: TextStyle(color: VidColors.text, fontSize: 13),
       dividerThickness: 1,
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
+    progressIndicatorTheme: ProgressIndicatorThemeData(
       color: VidColors.primary,
     ),
-    sliderTheme: const SliderThemeData(
+    sliderTheme: SliderThemeData(
       activeTrackColor: VidColors.primary,
       thumbColor: VidColors.primary,
       inactiveTrackColor: VidColors.neutral200,

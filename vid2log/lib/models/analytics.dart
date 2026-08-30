@@ -2,7 +2,7 @@
 /// SPM/DSM schemas (python_sidecar/app/schemas.py).
 library;
 
-/// Options shared by both mining tabs — the "Advanced options" panel.
+/// Options shared by both mining tabs, the "Advanced options" panel.
 /// Defaults match python_sidecar/app/schemas.py's own defaults, which in
 /// turn reproduce plain unconstrained PrefixSpan apart from maxGap.
 class MiningOptions {
@@ -55,10 +55,10 @@ class SpmPattern {
 
   final List<String> pattern;
 
-  /// S-frequency — how many logs contain this pattern at least once.
+  /// S-frequency, how many logs contain this pattern at least once.
   final int support;
 
-  /// S-support — [support] as a fraction of the logs analysed.
+  /// S-support, [support] as a fraction of the logs analysed.
   final double supportFraction;
 
   /// Total non-overlapping occurrences across every log.
@@ -91,7 +91,7 @@ class DsmPattern {
   final List<String> pattern;
   final double pValue;
 
-  /// Only one of these is populated per row — whichever group the pattern
+  /// Only one of these is populated per row, whichever group the pattern
   /// is characteristic of. See the sidecar's dsm_analyze for why a pattern
   /// frequent in both groups produces two rows rather than one.
   final double? isupportLeftMean;

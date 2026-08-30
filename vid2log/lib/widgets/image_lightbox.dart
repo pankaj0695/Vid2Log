@@ -1,5 +1,5 @@
 /// Full-screen image viewer, ported from
-/// frontend/components/ui/ImageLightbox.tsx — click a thumbnail to open it
+/// frontend/components/ui/ImageLightbox.tsx, click a thumbnail to open it
 /// large, then step through the rest of that action's images with the arrow
 /// buttons or the ← → keys, and Esc to close.
 library;
@@ -126,7 +126,7 @@ class _LightboxState extends State<_Lightbox> {
                           height: 200,
                           color: VidColors.neutral100,
                           alignment: Alignment.center,
-                          child: const Text(
+                          child: Text(
                             'This image is no longer on disk.',
                             style: TextStyle(color: VidColors.neutral500),
                           ),

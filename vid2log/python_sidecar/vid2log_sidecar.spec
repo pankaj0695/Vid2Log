@@ -144,6 +144,18 @@ hiddenimports = [
 binaries = []
 for package in ("tensorflow", "tf_keras", "sklearn", "scipy", "cv2", "PIL"):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
+    if package == "tensorflow":
+        # tensorflow/include/** ships C++ headers used only for compiling
+        # custom ops — never needed by a frozen runtime. They're also the
+        # deepest, longest paths in the whole bundle (gRPC/envoy proto
+        # trees nested many levels down), which on Windows blows past the
+        # 260-char MAX_PATH and makes Copy-Item fail with
+        # "Could not find a part of the path" when staging the sidecar
+        # next to Vid2Log.exe. Drop them; nothing at runtime imports them.
+        pkg_datas = [
+            (src, dest) for (src, dest) in pkg_datas
+            if not dest.replace("\\", "/").startswith("tensorflow/include")
+        ]
     datas += pkg_datas
     binaries += pkg_binaries
     hiddenimports += pkg_hidden

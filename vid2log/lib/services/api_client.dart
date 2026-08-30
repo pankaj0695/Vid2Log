@@ -1,5 +1,5 @@
 /// Thin HTTP wrapper around the Python sidecar's local API
-/// (python_sidecar/app/main.py). Every call targets 127.0.0.1 only — see
+/// (python_sidecar/app/main.py). Every call targets 127.0.0.1 only, see
 /// SidecarService for how that process gets started in the first place.
 library;
 
@@ -27,7 +27,7 @@ class ApiClient {
 
   final String baseUrl;
 
-  /// Resolves once the sidecar is actually listening — see
+  /// Resolves once the sidecar is actually listening, see
   /// SidecarService.waitUntilReady. Every request below awaits this first,
   /// so screens can fire their initial fetch from initState() without
   /// racing the sidecar's (multi-second, TensorFlow-import-dominated)
@@ -97,13 +97,13 @@ class ApiClient {
 
   // ── Video jobs ─────────────────────────────────────────────────────────
 
-  /// Kicks off processing for a video already on the user's own disk —
+  /// Kicks off processing for a video already on the user's own disk,
   /// [videoPath] must be an absolute local path (Flutter's file_picker
   /// gives you exactly that; there's no upload step at all, see
   /// python_sidecar/app/video_pipeline.py's module docstring).
   ///
   /// [modelId] null means "use the active model, falling back to the
-  /// bundled default" — same semantics as the web app's "Use active model"
+  /// bundled default", same semantics as the web app's "Use active model"
   /// dropdown option.
   Future<Job> createJob({
     required String videoPath,
@@ -137,7 +137,7 @@ class ApiClient {
 
   Future<void> deleteJob(String jobId) => _send('DELETE', '/jobs/$jobId');
 
-  /// Raw CSV bytes for the finished job's scene log — write these straight
+  /// Raw CSV bytes for the finished job's scene log, write these straight
   /// to whatever path the user picked in the save dialog.
   Future<Uint8List> getJobCsv(String jobId) async {
     await _ensureReady();
@@ -158,7 +158,7 @@ class ApiClient {
   }
 
   /// Creates a finished log straight from a CSV already on disk, skipping
-  /// the video pipeline — for logs produced by hand, exported from
+  /// the video pipeline, for logs produced by hand, exported from
   /// elsewhere, or exported from here and edited.
   Future<Job> importCsvLog(String csvPath) async {
     final json = await _send('POST', '/logs/import', {'csv_path': csvPath});
@@ -168,7 +168,7 @@ class ApiClient {
   // ── Training ───────────────────────────────────────────────────────────
 
   /// Inspects a folder whose subfolders are action names, returning what
-  /// the sidecar found without starting anything — powers the Train
+  /// the sidecar found without starting anything, powers the Train
   /// screen's folder-import preview.
   Future<List<ScannedAction>> scanDatasetFolder(String folderPath) async {
     final json = await _send('POST', '/train/scan-folder', {'folder_path': folderPath});
@@ -262,7 +262,7 @@ class ApiClient {
 
   Future<void> deleteDiscoveryJob(String id) => _send('DELETE', '/actions/discover/$id');
 
-  /// Absolute paths of one proposed action's preview frames — rendered
+  /// Absolute paths of one proposed action's preview frames, rendered
   /// directly with Image.file, since they're on this same machine.
   Future<List<String>> listClusterFrames(String discoveryJobId, String clusterId) async {
     final json = await _get('/actions/discover/$discoveryJobId/frames/$clusterId');
@@ -272,7 +272,7 @@ class ApiClient {
   }
 
   /// Saves a reviewed set of actions as a new dataset. [actions] maps a
-  /// final action name to its kept image paths — merging two actions is
+  /// final action name to its kept image paths, merging two actions is
   /// just listing both sets of paths under one name.
   ///
   /// [discoveryJobId] is set when this came from reviewing a discovery run,
@@ -312,7 +312,7 @@ class ApiClient {
     return list.map((e) => ActionDataset.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Full image paths per action — exactly the shape [startTraining]'s
+  /// Full image paths per action, exactly the shape [startTraining]'s
   /// `dataset` argument wants.
   Future<ActionDatasetDetail> getActionDataset(String datasetId) async {
     final json = await _get('/actions/datasets/$datasetId');
@@ -354,7 +354,7 @@ class ApiClient {
     return list.map((e) => DsmPattern.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// The statistical tests the DSM tab can offer — fetched rather than
+  /// The statistical tests the DSM tab can offer, fetched rather than
   /// hardcoded so the UI can't drift from what the sidecar accepts.
   Future<List<String>> listTestTypes() async {
     final json = await _get('/analytics/test-types');

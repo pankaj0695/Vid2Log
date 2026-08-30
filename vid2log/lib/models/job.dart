@@ -83,7 +83,7 @@ class Job {
     this.completedAt,
   });
 
-  /// What to show in a job list — the user-chosen rename if they've set
+  /// What to show in a job list, the user-chosen rename if they've set
   /// one, otherwise fall back to the original video filename.
   String get label =>
       (displayName != null && displayName!.trim().isNotEmpty)

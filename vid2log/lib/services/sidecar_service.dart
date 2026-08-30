@@ -5,11 +5,11 @@
 ///
 /// There are two ways the sidecar can exist, and this tries them in order:
 ///
-///   1. BUNDLED (release builds) — a standalone executable frozen with
+///   1. BUNDLED (release builds), a standalone executable frozen with
 ///      PyInstaller and shipped inside the app, so end users need no
 ///      Python, pip, or virtualenv. See python_sidecar/vid2log_sidecar.spec
 ///      and RELEASE.md.
-///   2. SOURCE (development) — `python_sidecar/.venv/.../python run.py`,
+///   2. SOURCE (development), `python_sidecar/.venv/.../python run.py`,
 ///      found by walking up from the running executable. See
 ///      python_sidecar/README.md "Setup".
 ///
@@ -55,7 +55,7 @@ class SidecarService {
       }
     } else if (s == SidecarState.starting) {
       // A fresh start attempt (including a Retry after a failure) needs a
-      // fresh completer — the previous one may already have resolved false.
+      // fresh completer, the previous one may already have resolved false.
       if (_readyCompleter == null || _readyCompleter!.isCompleted) {
         _readyCompleter = Completer<bool>();
       }
@@ -70,7 +70,7 @@ class SidecarService {
   /// TensorFlow alone is most of it), while the Flutter UI is interactive
   /// immediately. Without this, every screen's initState() fired its first
   /// HTTP call into a port nobody was listening on yet and painted a
-  /// "Connection refused" error — which then looked fine the moment you
+  /// "Connection refused" error, which then looked fine the moment you
   /// switched tabs, purely because by then the sidecar had finished booting.
   /// Screens await this before their first fetch instead.
   Future<bool> waitUntilReady() async {
@@ -97,18 +97,18 @@ class SidecarService {
   /// Locates `python_sidecar` next to the Flutter project. Two strategies,
   /// tried in order:
   ///
-  /// 1. `Platform.resolvedExecutable` — the path to the actual compiled
+  /// 1. `Platform.resolvedExecutable`, the path to the actual compiled
   ///    binary, e.g.
   ///    `<project>/build/macos/Build/Products/Debug/vid2log.app/Contents/MacOS/vid2log`.
   ///    This is the reliable one: when `flutter run -d macos` launches the
-  ///    app via Xcode/the debugger (the common case — that's the "DEBUG"
+  ///    app via Xcode/the debugger (the common case, that's the "DEBUG"
   ///    ribbon you see on screen), `Directory.current` is *not* the project
   ///    root, it's wherever Xcode/the IDE happened to launch the process
   ///    from, which varies. The executable path, by contrast, always sits
   ///    at a fixed depth under the project root's `build/` folder, so
   ///    walking upward from it reliably finds `python_sidecar` as a sibling
   ///    of `build/`.
-  /// 2. `Directory.current` — kept as a fallback for the case where the app
+  /// 2. `Directory.current`, kept as a fallback for the case where the app
   ///    was launched by running the built binary directly from a terminal
   ///    sitting in the project root.
   Future<Directory?> _resolveSidecarDir() async {
@@ -137,8 +137,8 @@ class SidecarService {
   /// How to launch the sidecar: the executable plus its arguments and the
   /// directory to run it from.
   ///
-  /// The frozen build takes no `run.py` argument — PyInstaller baked that
-  /// entry point into the binary itself — whereas the source build needs
+  /// The frozen build takes no `run.py` argument, PyInstaller baked that
+  /// entry point into the binary itself, whereas the source build needs
   /// `python run.py`. Keeping both shapes in one record means `start()`
   /// doesn't branch on which mode it's in.
   ({String executable, List<String> args, String workingDirectory})? _launch;
@@ -148,7 +148,7 @@ class SidecarService {
   ///
   /// macOS: the .app bundle puts it in `Contents/Resources/`, which is where
   /// the build script copies it, and `resolvedExecutable` is
-  /// `…/Contents/MacOS/vid2log` — hence `../Resources`.
+  /// `…/Contents/MacOS/vid2log`, hence `../Resources`.
   /// Windows: everything ships flat in the install directory, so the folder
   /// simply sits beside the .exe.
   Future<String?> _bundledSidecarExecutable() async {
@@ -199,7 +199,7 @@ class SidecarService {
     if (!await File(pythonExe).exists()) {
       _lastError =
           'Python sidecar virtualenv not found at $pythonExe. Follow the '
-          'setup steps in python_sidecar/README.md ("Setup") — you need to '
+          'setup steps in python_sidecar/README.md ("Setup"), you need to '
           'create python_sidecar/.venv and `pip install -r requirements.txt` '
           'before this app can spawn it.';
       return false;
@@ -214,7 +214,7 @@ class SidecarService {
   }
 
   /// Starts the sidecar subprocess (if not already running) and waits until
-  /// GET /health responds OK or [timeout] elapses. Safe to call repeatedly —
+  /// GET /health responds OK or [timeout] elapses. Safe to call repeatedly,
   /// it's a no-op while already starting/running.
   Future<void> start({Duration timeout = const Duration(seconds: 45)}) async {
     if (_state == SidecarState.starting || _state == SidecarState.running) {
@@ -228,7 +228,7 @@ class SidecarService {
     // spawning a second one. Without this, opening the packaged app while
     // a `flutter run` instance is alive (or after a previous launch left a
     // sidecar behind) starts a process that can't bind, so uvicorn exits
-    // with "Address already in use" — and the app reports a failure even
+    // with "Address already in use", and the app reports a failure even
     // though a perfectly good sidecar is listening right there.
     //
     // _process stays null in this case, which is exactly right: this
