@@ -238,6 +238,44 @@ class SidecarService {
       return;
     }
 
+    // Something other than a *healthy* sidecar might still be sitting on
+    // this port: most commonly a sibling instance of this same app whose
+    // own sidecar bound the socket seconds ago but is still busy importing
+    // TensorFlow, so it isn't answering /health yet (see the docstring on
+    // waitUntilReady). That race is easy to hit in practice, an installer
+    // that auto-launches the app right as the user also double-clicks the
+    // new desktop shortcut spawns exactly two of these at once.
+    //
+    // Spawning our own sidecar into an already-occupied port is doomed:
+    // uvicorn's bind() fails immediately with WinError 10048 / Errno 48
+    // ("Address already in use") and the process exits, which is the crash
+    // this whole check exists to avoid. So when the port is taken but not
+    // yet healthy, wait it out instead of racing a second process into the
+    // same bind() call, exactly the way the post-spawn loop below already
+    // waits for a sidecar *we* started.
+    if (!await _portAppearsFree(port)) {
+      // Capped well below a from-scratch TensorFlow-import boot: a sibling
+      // instance's sidecar is typically most of the way through starting
+      // already (it beat us to the socket), so it clears /health quickly if
+      // it's ever going to. No point making a genuinely stuck port wait out
+      // the full from-cold-start [timeout] before this reports anything.
+      final preSpawnWait =
+          timeout.inSeconds > 20 ? const Duration(seconds: 20) : timeout;
+      if (await _waitForHealthy(preSpawnWait)) {
+        _setState(SidecarState.running);
+        return;
+      }
+      _lastError =
+          'Port $port is already in use by another program, and it never '
+          'started answering as the vid2log engine. This usually means '
+          'another copy of vid2log is still starting up, or a leftover '
+          'vid2log_sidecar.exe process from an earlier run is stuck, check '
+          'Task Manager (Activity Monitor on macOS) for it, close it, then '
+          'hit Retry.';
+      _setState(SidecarState.failed);
+      return;
+    }
+
     if (!await _resolveLaunch()) {
       _setState(SidecarState.failed);
       return;
@@ -284,19 +322,47 @@ class SidecarService {
       return;
     }
 
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      if (await _isHealthy()) {
-        _setState(SidecarState.running);
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 500));
+    if (await _waitForHealthy(timeout)) {
+      _setState(SidecarState.running);
+      return;
     }
 
     _lastError =
         'Sidecar did not respond on $baseUrl/health within '
         '${timeout.inSeconds}s. Log: ${_logFile.path}';
     _setState(SidecarState.failed);
+  }
+
+  /// Polls GET /health until it succeeds or [timeout] elapses. Shared by the
+  /// post-spawn wait below and by the pre-spawn "someone else already owns
+  /// this port" wait above, both are the same "give a sidecar time to
+  /// finish booting" wait, just triggered from different places.
+  Future<bool> _waitForHealthy(Duration timeout) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (await _isHealthy()) return true;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    return false;
+  }
+
+  /// True if nothing is currently listening on [testPort] on localhost, so a
+  /// bind attempt there should succeed.
+  ///
+  /// Tests this by actually binding a throwaway server socket rather than,
+  /// say, attempting an HTTP connection: something can hold a port without
+  /// speaking HTTP (or without its HTTP server accepting connections yet),
+  /// and that's exactly the "occupied but not healthy" case this exists to
+  /// catch before letting a doomed second sidecar try the same bind() and
+  /// crash with WinError 10048 / Errno 48.
+  Future<bool> _portAppearsFree(int testPort) async {
+    try {
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, testPort);
+      await probe.close();
+      return true;
+    } on SocketException {
+      return false;
+    }
   }
 
   // ── Sidecar output capture ─────────────────────────────────────────────
