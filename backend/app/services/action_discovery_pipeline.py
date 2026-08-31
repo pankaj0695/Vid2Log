@@ -112,10 +112,24 @@ def _update_job(job_ref, **fields) -> None:
         log.warning("[%s] Progress update %s failed (transient?) — discovery continues.", job_ref.id, fields)
 
 
-def _sample_frames(video_path: Path, desired_fps: int) -> Tuple[List[np.ndarray], List[float]]:
-    """Direct port of the notebook's sample_frames() — keeps frames at a
-    fixed rate instead of every raw frame, since consecutive frames in a
-    screen recording are almost always near-identical."""
+def _sample_and_embed(
+    video_path: Path, desired_fps: int, embed_fn
+) -> Tuple[List[bytes], np.ndarray, List[float]]:
+    """Samples frames at a fixed rate AND embeds each one immediately,
+    discarding the raw decoded frame right after — replaces what used to be
+    two separate passes (sample all frames into memory, then embed all of
+    them). Holding every sampled frame as a raw, uncompressed BGR array
+    (several MB each, for a whole video's worth of frames) simultaneously is
+    what OOM-kills this job on longer videos; peak memory here no longer
+    scales with video length, only with the number of embeddings (~3KB each)
+    and JPEG-encoded preview bytes (a few hundred KB each) kept per frame —
+    both needed later (embeddings for clustering, JPEGs for the preview
+    upload step), unlike the raw frame itself.
+
+    Returns (frame_jpegs, embeddings, timestamps) — frame_jpegs are
+    pre-encoded so the preview-upload step just writes bytes, no re-encoding
+    from a raw frame it no longer has.
+    """
     video = cv2.VideoCapture(str(video_path))
     if not video.isOpened():
         raise IOError(f"Could not open video: {video_path}")
@@ -123,7 +137,8 @@ def _sample_frames(video_path: Path, desired_fps: int) -> Tuple[List[np.ndarray]
     src_fps = video.get(cv2.CAP_PROP_FPS) or 30.0
     interval = max(1, int(round(src_fps / desired_fps)))
 
-    frames: List[np.ndarray] = []
+    frame_jpegs: List[bytes] = []
+    embeddings: List[np.ndarray] = []
     timestamps: List[float] = []
     count = 0
     while True:
@@ -131,12 +146,14 @@ def _sample_frames(video_path: Path, desired_fps: int) -> Tuple[List[np.ndarray]
         if not ret:
             break
         if count % interval == 0:
-            frames.append(frame)  # BGR, as read by OpenCV
+            embeddings.append(embed_fn(frame))
+            ok, buf = cv2.imencode(".jpg", frame)
+            frame_jpegs.append(buf.tobytes() if ok else b"")
             timestamps.append(count / src_fps)
         count += 1
 
     video.release()
-    return frames, timestamps
+    return frame_jpegs, np.stack(embeddings) if embeddings else np.empty((0, 0)), timestamps
 
 
 def _reassign_noise(embeddings: np.ndarray, labels: np.ndarray) -> np.ndarray:
@@ -253,20 +270,10 @@ def run_discovery_job(job_id: str) -> None:
         log.info("[%s] Downloading video from Cloud Storage...", job_id)
         gcs_service.download_blob(storage_path, video_path)
 
-        _update_job(job_ref, progress={"stage": "sampling", "detail": "Sampling frames"})
-        frames, _timestamps = _sample_frames(video_path, desired_fps=fps)
-        log.info("[%s] Sampled %d frames.", job_id, len(frames))
-        if len(frames) < min_cluster_size:
-            raise ValueError(
-                f"Only {len(frames)} frame(s) were sampled from this video — too few to cluster "
-                f"(need at least {min_cluster_size}, the min cluster size setting). Try a longer "
-                "video, a higher sampling fps, or a smaller min cluster size."
-            )
-
         device = "cuda" if torch.cuda.is_available() else "cpu"
         _update_job(
             job_ref,
-            progress={"stage": "embedding", "detail": f"Embedding {len(frames)} frames (DINOv2, {device})"},
+            progress={"stage": "sampling", "detail": f"Sampling and embedding frames (DINOv2, {device})"},
         )
         processor = AutoImageProcessor.from_pretrained(DINO_MODEL_ID)
         dino_model = AutoModel.from_pretrained(DINO_MODEL_ID).to(device)
@@ -281,7 +288,17 @@ def run_discovery_job(job_id: str) -> None:
             # CLS token: a single 768-d vector summarizing the whole frame.
             return outputs.last_hidden_state[:, 0, :].squeeze(0).cpu().numpy()
 
-        embeddings = np.stack([_embed(f) for f in frames])
+        # See _sample_and_embed's docstring — sampling and embedding happen
+        # in one pass now, specifically so a long/high-resolution video's
+        # raw decoded frames are never all resident in memory at once.
+        frame_jpegs, embeddings, _timestamps = _sample_and_embed(video_path, desired_fps=fps, embed_fn=_embed)
+        log.info("[%s] Sampled and embedded %d frames.", job_id, len(frame_jpegs))
+        if len(frame_jpegs) < min_cluster_size:
+            raise ValueError(
+                f"Only {len(frame_jpegs)} frame(s) were sampled from this video — too few to cluster "
+                f"(need at least {min_cluster_size}, the min cluster size setting). Try a longer "
+                "video, a higher sampling fps, or a smaller min cluster size."
+            )
         log.info("[%s] Computed %d embeddings (dim=%d).", job_id, embeddings.shape[0], embeddings.shape[1])
 
         _update_job(job_ref, progress={"stage": "clustering", "detail": "Clustering (HDBSCAN)"})
@@ -312,13 +329,15 @@ def run_discovery_job(job_id: str) -> None:
             )
             uploaded = 0
             for frame_pos, frame_idx in enumerate(picked):
-                ok, buf = cv2.imencode(".jpg", frames[frame_idx])
-                if not ok:
+                # Already JPEG-encoded by _sample_and_embed — no raw frame
+                # to re-encode from anymore (that's the whole point).
+                jpeg_bytes = frame_jpegs[frame_idx]
+                if not jpeg_bytes:
                     continue
                 blob_path = (
                     f"{gcs_service.ACTION_DISCOVERY_TEMP_PREFIX}{owner_uid}/{job_id}/{cluster_id}/{frame_pos}.jpg"
                 )
-                gcs_service.upload_bytes(buf.tobytes(), blob_path)
+                gcs_service.upload_bytes(jpeg_bytes, blob_path)
                 uploaded += 1
             clusters_out.append({"id": str(cluster_id), "name": f"Action {i + 1}", "frame_count": uploaded})
 
