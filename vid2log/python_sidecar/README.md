@@ -75,6 +75,16 @@ source .venv/bin/activate
 python run.py --port 8756
 ```
 
+An explicit `--port` like that is for humans and scripts, who want a URL
+they can type. The Flutter app instead passes `--port 0`, which means "any
+port the OS says is free", and reads the chosen one back off the
+`VID2LOG_PORT=...` line this prints at startup. That is deliberate: a
+hard-coded port fails on end-user machines in several ways at once (a
+second copy of the app starting at the same moment, a stale sidecar still
+holding it, an unrelated program on it, or a Windows Hyper-V reserved
+range), all of which surfaced as the same "Address already in use" crash on
+launch. Leave the default at 0.
+
 Then `curl http://127.0.0.1:8756/health` should return `{"status":"ok"}`,
 and:
 

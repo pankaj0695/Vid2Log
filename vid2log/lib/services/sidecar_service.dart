@@ -26,10 +26,35 @@ import 'package:path/path.dart' as p;
 
 enum SidecarState { stopped, starting, running, failed }
 
-class SidecarService {
-  SidecarService({this.port = 8756});
+/// The line python_sidecar/run.py prints (to both stdout and stderr) as soon
+/// as it has bound its socket, e.g. `VID2LOG_PORT=54312`. Must stay in sync
+/// with that file's PORT_ANNOUNCEMENT.
+const _kPortAnnouncement = 'VID2LOG_PORT=';
 
-  final int port;
+class SidecarService {
+  SidecarService();
+
+  /// The port the sidecar actually bound, learned from its own announcement
+  /// rather than decided here.
+  ///
+  /// There is deliberately no fixed default. The sidecar is started with
+  /// `--port 0`, which asks the OS for a port that is genuinely free right
+  /// now, and it reports back which one it got. A hard-coded port (this was
+  /// 8756) is a single point of failure on someone else's machine: another
+  /// program can hold it, a stale sidecar from an earlier run can still own
+  /// it, two copies of this app starting at once both want it, and on
+  /// Windows it can sit inside a Hyper-V/WSL reserved range where bind()
+  /// fails with "only one usage of each socket address is normally
+  /// permitted" while netstat shows nothing holding it at all. All four of
+  /// those surfaced as the same unrecoverable "Local engine failed to
+  /// start" banner on a fresh install. An OS-assigned port has none of
+  /// them.
+  int? _activePort;
+
+  /// Null until the sidecar has reported its port. Callers reach the API
+  /// through ApiClient, which waits on [waitUntilReady] before touching
+  /// this, so by the time a request is built the port is always known.
+  int? get activePort => _activePort;
 
   Process? _process;
   SidecarState _state = SidecarState.stopped;
@@ -39,7 +64,11 @@ class SidecarService {
   SidecarState get state => _state;
   String? get lastError => _lastError;
   Stream<SidecarState> get stateStream => _stateController.stream;
-  String get baseUrl => 'http://127.0.0.1:$port';
+
+  /// Port 0 stands in before the real port is known: nothing listens there,
+  /// so a request that somehow slipped past [waitUntilReady] fails as a
+  /// connection error instead of silently reaching the wrong service.
+  String get baseUrl => 'http://127.0.0.1:${_activePort ?? 0}';
 
   void _setState(SidecarState s) {
     _state = s;
@@ -178,7 +207,9 @@ class SidecarService {
     if (bundled != null) {
       _launch = (
         executable: bundled,
-        args: ['--port', '$port'],
+        // 0 = "any free port": see the note on _activePort for why nothing
+        // here picks a number. run.py prints back the one it got.
+        args: ['--port', '0'],
         // Run from the binary's own folder so any relative path it resolves
         // lands inside the bundle rather than wherever the app was started.
         workingDirectory: p.dirname(bundled),
@@ -207,7 +238,7 @@ class SidecarService {
 
     _launch = (
       executable: pythonExe,
-      args: ['run.py', '--port', '$port'],
+      args: ['run.py', '--port', '0'],
       workingDirectory: sidecarDir.path,
     );
     return true;
@@ -224,55 +255,19 @@ class SidecarService {
     _lastError = null;
     _setState(SidecarState.starting);
 
-    // Adopt a sidecar that's already serving on this port instead of
-    // spawning a second one. Without this, opening the packaged app while
-    // a `flutter run` instance is alive (or after a previous launch left a
-    // sidecar behind) starts a process that can't bind, so uvicorn exits
-    // with "Address already in use", and the app reports a failure even
-    // though a perfectly good sidecar is listening right there.
+    // Adopt a sidecar that's already serving instead of spawning a second
+    // one. Opening the packaged app while a `flutter run` instance is alive
+    // (or a second window of the app itself) otherwise starts a whole extra
+    // TensorFlow process for no reason. The port to check comes from the
+    // file the last successful launch wrote, since it is no longer a
+    // constant this code can assume.
     //
     // _process stays null in this case, which is exactly right: this
     // instance didn't start that process and must not kill it on exit.
-    if (await _isHealthy()) {
+    final recorded = await _readRecordedPort();
+    if (recorded != null && await _isHealthy(recorded)) {
+      _activePort = recorded;
       _setState(SidecarState.running);
-      return;
-    }
-
-    // Something other than a *healthy* sidecar might still be sitting on
-    // this port: most commonly a sibling instance of this same app whose
-    // own sidecar bound the socket seconds ago but is still busy importing
-    // TensorFlow, so it isn't answering /health yet (see the docstring on
-    // waitUntilReady). That race is easy to hit in practice, an installer
-    // that auto-launches the app right as the user also double-clicks the
-    // new desktop shortcut spawns exactly two of these at once.
-    //
-    // Spawning our own sidecar into an already-occupied port is doomed:
-    // uvicorn's bind() fails immediately with WinError 10048 / Errno 48
-    // ("Address already in use") and the process exits, which is the crash
-    // this whole check exists to avoid. So when the port is taken but not
-    // yet healthy, wait it out instead of racing a second process into the
-    // same bind() call, exactly the way the post-spawn loop below already
-    // waits for a sidecar *we* started.
-    if (!await _portAppearsFree(port)) {
-      // Capped well below a from-scratch TensorFlow-import boot: a sibling
-      // instance's sidecar is typically most of the way through starting
-      // already (it beat us to the socket), so it clears /health quickly if
-      // it's ever going to. No point making a genuinely stuck port wait out
-      // the full from-cold-start [timeout] before this reports anything.
-      final preSpawnWait =
-          timeout.inSeconds > 20 ? const Duration(seconds: 20) : timeout;
-      if (await _waitForHealthy(preSpawnWait)) {
-        _setState(SidecarState.running);
-        return;
-      }
-      _lastError =
-          'Port $port is already in use by another program, and it never '
-          'started answering as the vid2log engine. This usually means '
-          'another copy of vid2log is still starting up, or a leftover '
-          'vid2log_sidecar.exe process from an earlier run is stuck, check '
-          'Task Manager (Activity Monitor on macOS) for it, close it, then '
-          'hit Retry.';
-      _setState(SidecarState.failed);
       return;
     }
 
@@ -283,6 +278,14 @@ class SidecarService {
     final launch = _launch!;
 
     try {
+      _portAnnounced = Completer<int>();
+      _announceBuffer = '';
+      _processExited = false;
+      // A sidecar that dies instantly can complete this with an error
+      // before start() reaches its await below, and an error with no
+      // listener is an unhandled async exception. This listener is only
+      // here to absorb that; the real await still sees the error.
+      _portAnnounced!.future.catchError((_) => -1);
       _process = await Process.start(
         launch.executable,
         launch.args,
@@ -305,6 +308,7 @@ class SidecarService {
           .listen((chunk) => _onSidecarOutput(chunk, isError: true));
 
       _process!.exitCode.then((code) {
+        _processExited = true;
         _closeLogSink();
         if (_state != SidecarState.stopped) {
           final tail = _recentOutput.join().trim();
@@ -315,6 +319,9 @@ class SidecarService {
                   '· Full log: ${_logFile.path}';
           _setState(SidecarState.failed);
         }
+        // Last, so the message above is already in place when start()
+        // wakes up and decides whether it has anything better to say.
+        _failPortAnnouncement();
       });
     } catch (e) {
       _lastError = 'Failed to launch sidecar process: $e';
@@ -322,46 +329,145 @@ class SidecarService {
       return;
     }
 
-    if (await _waitForHealthy(timeout)) {
+    // The sidecar binds its socket before it starts importing TensorFlow
+    // and announces the port immediately, so this resolves in well under a
+    // second even though the server itself is not accepting connections
+    // yet. A process that dies first (a missing dependency in the frozen
+    // bundle, say) completes this with an error via _failPortAnnouncement,
+    // so this never waits out the full timeout for a corpse.
+    final int announcedPort;
+    try {
+      announcedPort = await _portAnnounced!.future.timeout(timeout);
+    } catch (_) {
+      if (_state != SidecarState.failed) {
+        _lastError =
+            'The local engine started but never reported which port it is '
+            'serving on. Log: ${_logFile.path}';
+        _setState(SidecarState.failed);
+      }
+      return;
+    }
+    _activePort = announcedPort;
+
+    if (await _waitForHealthy(announcedPort, timeout)) {
+      // Recorded only now that it is known good, so the next launch adopts
+      // this sidecar instead of starting a second one.
+      await _recordPort(announcedPort);
       _setState(SidecarState.running);
       return;
     }
 
-    _lastError =
-        'Sidecar did not respond on $baseUrl/health within '
-        '${timeout.inSeconds}s. Log: ${_logFile.path}';
-    _setState(SidecarState.failed);
+    // Only if nothing better is already on record: when the process died on
+    // its own, the exit handler above has the actual reason (a traceback, a
+    // bind failure), and overwriting that with a generic timeout would throw
+    // away the one thing that explains the failure.
+    if (_state != SidecarState.failed) {
+      _lastError = _processExited
+          ? 'The local engine stopped while starting up. Log: ${_logFile.path}'
+          : 'Sidecar did not respond on $baseUrl/health within '
+              '${timeout.inSeconds}s. Log: ${_logFile.path}';
+      _setState(SidecarState.failed);
+    }
   }
 
-  /// Polls GET /health until it succeeds or [timeout] elapses. Shared by the
-  /// post-spawn wait below and by the pre-spawn "someone else already owns
-  /// this port" wait above, both are the same "give a sidecar time to
-  /// finish booting" wait, just triggered from different places.
-  Future<bool> _waitForHealthy(Duration timeout) async {
+  /// Completes with the port from the sidecar's `VID2LOG_PORT=` line, or
+  /// with an error if the process dies before printing one.
+  Completer<int>? _portAnnounced;
+
+  /// Set the moment the sidecar process exits, so the health poll below can
+  /// stop waiting on a corpse.
+  bool _processExited = false;
+
+  /// Polls GET /health on [healthPort] until it succeeds, the process dies,
+  /// or [timeout] elapses.
+  ///
+  /// The dead-process check matters more than it looks. The port is now
+  /// announced before the sidecar's slow imports run, so a crash *during*
+  /// those imports lands after the announcement; without this the app would
+  /// sit through the entire timeout before saying anything, then report a
+  /// vague "did not respond" instead of the traceback the exit handler had
+  /// already captured seconds earlier.
+  Future<bool> _waitForHealthy(int healthPort, Duration timeout) async {
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
-      if (await _isHealthy()) return true;
+      if (await _isHealthy(healthPort)) return true;
+      if (_processExited) return false;
       await Future.delayed(const Duration(milliseconds: 500));
     }
     return false;
   }
 
-  /// True if nothing is currently listening on [testPort] on localhost, so a
-  /// bind attempt there should succeed.
-  ///
-  /// Tests this by actually binding a throwaway server socket rather than,
-  /// say, attempting an HTTP connection: something can hold a port without
-  /// speaking HTTP (or without its HTTP server accepting connections yet),
-  /// and that's exactly the "occupied but not healthy" case this exists to
-  /// catch before letting a doomed second sidecar try the same bind() and
-  /// crash with WinError 10048 / Errno 48.
-  Future<bool> _portAppearsFree(int testPort) async {
+  /// Rolling window of recent output, kept only until the port is found.
+  /// The announcement can straddle two chunks, and half a port number is
+  /// worse than none, so matching happens across the join rather than
+  /// within one chunk.
+  String _announceBuffer = '';
+
+  /// Picks the announced port out of the sidecar's output. run.py prints the
+  /// line to stdout *and* stderr, so this can fire twice; the completer
+  /// guard makes the second one a no-op.
+  void _maybeCapturePort(String chunk) {
+    final pending = _portAnnounced;
+    if (pending == null || pending.isCompleted) return;
+
+    _announceBuffer += chunk;
+    // The trailing \s is what proves the number is complete rather than cut
+    // off at a chunk boundary; run.py prints the line with a newline.
+    final match = RegExp('$_kPortAnnouncement(\\d+)\\s').firstMatch(_announceBuffer);
+    if (match == null) {
+      if (_announceBuffer.length > 512) {
+        _announceBuffer = _announceBuffer.substring(_announceBuffer.length - 512);
+      }
+      return;
+    }
+
+    final parsed = int.tryParse(match.group(1)!);
+    if (parsed != null && parsed > 0) {
+      _announceBuffer = '';
+      pending.complete(parsed);
+    }
+  }
+
+  /// Unblocks the port wait when the process exits without ever announcing
+  /// one, so start() reports the real reason (which the exit handler has
+  /// already put in _lastError) rather than a timeout.
+  void _failPortAnnouncement() {
+    final pending = _portAnnounced;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('sidecar exited before announcing a port'));
+    }
+  }
+
+  /// Where the last known-good port is remembered between launches. Next to
+  /// the log rather than in the install directory, which is read-only once
+  /// the app is installed under Program Files.
+  File get _portFile => File(p.join(_dataDir, '.vid2log', 'sidecar.port'));
+
+  Future<int?> _readRecordedPort() async {
     try {
-      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, testPort);
-      await probe.close();
-      return true;
-    } on SocketException {
-      return false;
+      if (!await _portFile.exists()) return null;
+      return int.tryParse((await _portFile.readAsString()).trim());
+    } catch (_) {
+      // An unreadable hint file is not worth failing a launch over, the
+      // caller just starts its own sidecar.
+      return null;
+    }
+  }
+
+  Future<void> _recordPort(int value) async {
+    try {
+      await _portFile.parent.create(recursive: true);
+      await _portFile.writeAsString('$value');
+    } catch (_) {
+      // Losing the hint only costs a duplicate sidecar next launch.
+    }
+  }
+
+  Future<void> _forgetRecordedPort() async {
+    try {
+      if (await _portFile.exists()) await _portFile.delete();
+    } catch (_) {
+      // Same as above: a stale hint is handled by health-checking it.
     }
   }
 
@@ -380,17 +486,15 @@ class SidecarService {
 
   IOSink? _logSink;
 
+  /// The user's home directory, where this app keeps everything it writes.
+  String get _dataDir =>
+      Platform.environment['HOME'] ??
+      Platform.environment['USERPROFILE'] ??
+      Directory.systemTemp.path;
+
   /// Lives next to the database rather than inside the app bundle, which is
   /// read-only once installed to /Applications.
-  File get _logFile => File(
-        p.join(
-          Platform.environment['HOME'] ??
-              Platform.environment['USERPROFILE'] ??
-              Directory.systemTemp.path,
-          '.vid2log',
-          'sidecar.log',
-        ),
-      );
+  File get _logFile => File(p.join(_dataDir, '.vid2log', 'sidecar.log'));
 
   Future<void> _openLogSink() async {
     try {
@@ -420,6 +524,7 @@ class SidecarService {
   void _onSidecarOutput(String chunk, {required bool isError}) {
     (isError ? stderr : stdout).write('[sidecar] $chunk');
     _logSink?.write(chunk);
+    _maybeCapturePort(chunk);
 
     _recentOutput.add(chunk);
     if (_recentOutput.length > _maxRecentChunks) {
@@ -456,10 +561,13 @@ class SidecarService {
     return errorLine.length > 300 ? '${errorLine.substring(0, 300)}…' : errorLine;
   }
 
-  Future<bool> _isHealthy() async {
+  /// Whether something is answering /health as this app's engine on
+  /// [healthPort]. Takes the port explicitly because it is also used to vet
+  /// a port remembered from a previous launch, before [_activePort] is set.
+  Future<bool> _isHealthy(int healthPort) async {
     try {
       final res = await http
-          .get(Uri.parse('$baseUrl/health'))
+          .get(Uri.parse('http://127.0.0.1:$healthPort/health'))
           .timeout(const Duration(seconds: 2));
       return res.statusCode == 200;
     } catch (_) {
@@ -473,8 +581,13 @@ class SidecarService {
   Future<void> stop() async {
     final proc = _process;
     _process = null;
+    _activePort = null;
     _setState(SidecarState.stopped);
     if (proc != null) {
+      // Only the instance that started this sidecar clears the hint: an
+      // adopted one (proc == null) belongs to another window that is still
+      // using it.
+      await _forgetRecordedPort();
       proc.kill(ProcessSignal.sigterm);
       // Give it a moment to shut down cleanly, then force-kill if it's
       // still around (mirrors typical subprocess-supervisor practice).

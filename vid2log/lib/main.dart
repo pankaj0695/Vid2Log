@@ -36,7 +36,9 @@ class _Vid2LogAppState extends State<Vid2LogApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _sidecar = SidecarService();
     _apiClient = ApiClient(
-      baseUrl: _sidecar.baseUrl,
+      // Passed as a callback, not a value: the sidecar picks a free port at
+      // launch and reports it back, so there is nothing to read here yet.
+      baseUrl: () => _sidecar.baseUrl,
       // Gate every request on the sidecar actually being up, see
       // ApiClient.waitUntilReady's doc comment for why this matters on a
       // cold start.

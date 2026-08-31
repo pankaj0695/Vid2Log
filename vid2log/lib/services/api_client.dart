@@ -25,7 +25,12 @@ class ApiClient {
   ApiClient({required this.baseUrl, this.waitUntilReady, http.Client? client})
       : _client = client ?? http.Client();
 
-  final String baseUrl;
+  /// Resolved per request rather than captured once, because the sidecar's
+  /// port is not known until it has started and reported it (see
+  /// SidecarService._activePort, which no longer hard-codes one). Every
+  /// request goes through _ensureReady first, so by the time this is called
+  /// the port is settled.
+  final String Function() baseUrl;
 
   /// Resolves once the sidecar is actually listening, see
   /// SidecarService.waitUntilReady. Every request below awaits this first,
@@ -50,7 +55,7 @@ class ApiClient {
   }
 
   Uri _uri(String path, [Map<String, String>? query]) =>
-      Uri.parse('$baseUrl$path').replace(queryParameters: query);
+      Uri.parse('${baseUrl()}$path').replace(queryParameters: query);
 
   String _detailFrom(http.Response res) {
     try {

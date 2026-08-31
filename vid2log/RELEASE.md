@@ -218,14 +218,31 @@ Almost always a missing hidden import — add it to `hiddenimports` in
 `vid2log_sidecar.spec` and rebuild.
 
 **"Address already in use" / exit code 3 right after launch**
-Another sidecar is already on port 8756 — usually one left behind by a
-`flutter run` session or an earlier launch. The app now adopts a healthy
-sidecar it finds there instead of spawning a duplicate, so this should be
-self-correcting; if a *stale* one is wedged, kill it:
+This should no longer be reachable in a packaged build, and the reason is
+worth knowing before changing anything in this area.
 
-```bash
-lsof -ti :8756 | xargs kill
-```
+The app used to pin the sidecar to port 8756, and `run.py` only bound that
+port at the very END of startup, after the TensorFlow import that dominates
+a cold boot. So for tens of seconds a starting sidecar held nothing, and a
+second one starting in that window saw a free port, went ahead, and only
+collided when both finally reached `bind()`. The installer's "Launch
+Vid2Log" checkbox firing while the user also opens the new shortcut is
+enough to trigger it, which is why it showed up on fresh installs in
+particular. A fixed port had three other failure modes on end-user machines
+too: another program holding it, a stale sidecar owning it, and on Windows
+the port sitting inside a Hyper-V/WSL reserved range, where `bind()` fails
+with "only one usage of each socket address" while `netstat` shows nothing
+holding it at all.
+
+Both halves are fixed. `run.py` binds its socket FIRST, before importing
+anything slow, and the app starts it with `--port 0`, so the OS hands out a
+port that is genuinely free and the sidecar reports back which one it got
+(`VID2LOG_PORT=...`, parsed in `sidecar_service.dart`). The last known-good
+port is remembered in `~/.vid2log/sidecar.port`, so a second window adopts
+the running sidecar instead of starting a second TensorFlow process.
+
+If this ever comes back, it means a fixed port was reintroduced: check the
+`--port` argument in `_resolveLaunch()` rather than hunting for a process.
 
 Note that uvicorn prints its normal shutdown messages after a failed
 startup, so the last line of the log ("Application shutdown complete") is
