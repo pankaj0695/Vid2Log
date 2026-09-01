@@ -37,6 +37,17 @@
   --color-text: #eef4f8;
   --color-ink: #071310;
 
+  /* Hover tooltips (components/ui/Tooltip.tsx). These need their OWN pair
+     rather than reusing ink/surface: `--color-ink` and `--color-surface`
+     are both #ffffff in light mode (ink is button-text-on-accent, surface
+     is a card fill — they're simply unrelated roles that happen to
+     collide), so a tooltip built from them renders white-on-white and
+     disappears. A tooltip must always contrast against the PAGE, so it
+     inverts per theme: a light chip on the near-black dark page, a
+     near-black chip on the light page. */
+  --color-tooltip-bg: #e8eef4;
+  --color-tooltip-fg: #0b1220;
+
   --color-primary: #2dd4bf;
   --color-primary-hover: #5eead4;
   --color-primary-tint: #0e2b27;
@@ -75,6 +86,9 @@
   --color-text: #0f172a;
   --color-ink: #ffffff;
 
+  --color-tooltip-bg: #0f172a;
+  --color-tooltip-fg: #f8fafc;
+
   --color-primary: #0d9488;
   --color-primary-hover: #0f766e;
   --color-primary-tint: #ecfdf5;
@@ -108,6 +122,8 @@
   --color-bg: var(--color-bg);
   --color-surface-2: var(--color-surface-2);
   --color-ink: var(--color-ink);
+  --color-tooltip-bg: var(--color-tooltip-bg);
+  --color-tooltip-fg: var(--color-tooltip-fg);
 
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);

@@ -19,6 +19,9 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS, BUTTON_TOOLTIPS, FIELD_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 
 function stagger(index: number, stepMs = 45): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
@@ -168,7 +171,7 @@ function CreateActionsContent() {
     try {
       setDatasets(await api.actions.listDatasets());
     } catch (err) {
-      setDatasetsError(err instanceof Error ? err.message : "Failed to load saved datasets.");
+      setDatasetsError(err instanceof Error ? err.message : "Failed to load saved action sets.");
     }
   }
 
@@ -322,7 +325,7 @@ function CreateActionsContent() {
         })
       );
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to load this dataset's actions.");
+      setSaveError(err instanceof Error ? err.message : "Failed to load this action set's actions.");
     }
   }
 
@@ -457,7 +460,7 @@ function CreateActionsContent() {
     if (!reviewMode || !reviewSourceId) return;
     const name = datasetName.trim();
     if (!name) {
-      setSaveError("Give this dataset a name.");
+      setSaveError("Give this action set a name.");
       return;
     }
     const usable = classes.map((c) => ({ ...c, name: c.name.trim() })).filter((c) => c.name && c.images.length > 0);
@@ -501,7 +504,7 @@ function CreateActionsContent() {
       await loadDatasets();
       setTab("saved");
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save dataset.");
+      setSaveError(err instanceof Error ? err.message : "Failed to save action set.");
     } finally {
       setSaving(false);
     }
@@ -557,7 +560,7 @@ function CreateActionsContent() {
       setDeleteDatasetTarget(null);
       await loadDatasets();
     } catch (err) {
-      setDatasetsError(err instanceof Error ? err.message : "Failed to delete dataset.");
+      setDatasetsError(err instanceof Error ? err.message : "Failed to delete action set.");
     } finally {
       setDeleteDatasetBusy(false);
     }
@@ -568,13 +571,22 @@ function CreateActionsContent() {
   return (
     <AppShell section="create-actions" crumb="Create actions">
       <Container className="py-10">
-        <PageHeader eyebrow="Create actions" title="Auto-discover actions from a video" />
+        <PageHeader
+          eyebrow="Create actions"
+          subtitle={PAGE_SUBTITLES["create-actions"]}
+          title="Auto-discover actions from a video"
+          helpAnchor={HELP_ANCHORS.createActions}
+        />
 
         {!reviewMode && (
           <Tabs
             tabs={[
-              { id: "discover", label: `Discover${activeJobCount > 0 ? ` (${activeJobCount} active)` : ""}` },
-              { id: "saved", label: "Saved datasets" },
+              {
+                id: "discover",
+                label: `Discover${activeJobCount > 0 ? ` (${activeJobCount} active)` : ""}`,
+                tooltip: TAB_TOOLTIPS.createActions.discover,
+              },
+              { id: "saved", label: "Saved action sets", tooltip: TAB_TOOLTIPS.createActions.saved },
             ]}
             active={tab}
             onChange={setTab}
@@ -596,7 +608,7 @@ function CreateActionsContent() {
             <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
                 <div className="min-w-0 space-y-4">
                   <Card>
-                    <CardHeader title="Dataset name" />
+                    <CardHeader title="Action set name" />
                     <Input value={datasetName} onChange={(e) => setDatasetName(e.target.value)} placeholder="e.g. math-game-demo-actions" disabled={saving} />
                   </Card>
 
@@ -735,23 +747,27 @@ function CreateActionsContent() {
                   <Card>
                     <p className="mb-3 text-sm font-semibold text-text">Manage actions</p>
                     <div className="space-y-2">
-                      <Button variant="outline" className="w-full" onClick={addClass} disabled={saving}>
-                        + Add new action
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={mergeSelected}
-                        disabled={selectedForMerge.size < 2 || saving}
-                      >
-                        Merge selected {selectedForMerge.size > 1 ? `(${selectedForMerge.size})` : ""}
-                      </Button>
+                      <Tooltip label={BUTTON_TOOLTIPS.addAction} wrapperClassName="block">
+                        <Button variant="outline" className="w-full" onClick={addClass} disabled={saving}>
+                          + Add new action
+                        </Button>
+                      </Tooltip>
+                      <Tooltip label={BUTTON_TOOLTIPS.merge} wrapperClassName="block">
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={mergeSelected}
+                          disabled={selectedForMerge.size < 2 || saving}
+                        >
+                          Merge selected {selectedForMerge.size > 1 ? `(${selectedForMerge.size})` : ""}
+                        </Button>
+                      </Tooltip>
                     </div>
                   </Card>
 
                   <Card>
                     <Button size="lg" className="w-full" onClick={handleSaveDataset} loading={saving} disabled={classes.length === 0}>
-                      Save dataset
+                      Save action set
                     </Button>
                     <Button variant="outline" className="mt-2 w-full" onClick={exitReview} disabled={saving}>
                       Cancel
@@ -768,7 +784,7 @@ function CreateActionsContent() {
                   <CardHeader title="Upload a demo video" />
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="sm:col-span-3">
-                      <Label htmlFor="action-video-file">Screen recording</Label>
+                      <Label htmlFor="action-video-file" tooltip={FIELD_TOOLTIPS.createActions.video}>Screen recording</Label>
                       <input
                         id="action-video-file"
                         type="file"
@@ -780,7 +796,7 @@ function CreateActionsContent() {
                       {videoFile && <p className="mt-1.5 text-sm text-neutral-500">{videoFile.name}</p>}
                     </div>
                     <div>
-                      <Label htmlFor="action-fps">Sampling FPS</Label>
+                      <Label htmlFor="action-fps" tooltip={FIELD_TOOLTIPS.createActions.fps}>Sampling FPS</Label>
                       <Input
                         id="action-fps"
                         type="number"
@@ -792,7 +808,7 @@ function CreateActionsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="action-min-cluster">Minimum cluster size</Label>
+                      <Label htmlFor="action-min-cluster" tooltip={FIELD_TOOLTIPS.createActions.minCluster}>Minimum cluster size</Label>
                       <Input
                         id="action-min-cluster"
                         type="number"
@@ -917,7 +933,7 @@ function CreateActionsContent() {
                     ))}
                   </div>
                 ) : datasets.length === 0 ? (
-                  <EmptyState title="No saved datasets yet" />
+                  <EmptyState title="No saved action sets yet" />
                 ) : (
                   <div className="space-y-3">
                     {datasets.map((ds, i) => (
@@ -990,7 +1006,7 @@ function CreateActionsContent() {
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm" role="status" aria-live="polite">
           <div className="animate-fade-in-up flex w-72 flex-col items-center gap-4 rounded-2xl border border-neutral-200 bg-surface px-8 py-7 text-center shadow-2xl">
             <Spinner size="lg" />
-            <p className="text-sm font-semibold text-text">Saving your dataset…</p>
+            <p className="text-sm font-semibold text-text">Saving your action set…</p>
             <div className="w-full">
               <IndeterminateProgressBar />
             </div>
@@ -1007,7 +1023,7 @@ function CreateActionsContent() {
 
       <ConfirmDialog
         open={deleteDatasetTarget !== null}
-        title="Delete this dataset?"
+        title="Delete this action set?"
         description={
           deleteDatasetTarget && (
             <>
@@ -1016,7 +1032,7 @@ function CreateActionsContent() {
             </>
           )
         }
-        confirmLabel="Delete dataset"
+        confirmLabel="Delete action set"
         busy={deleteDatasetBusy}
         onConfirm={confirmDeleteDataset}
         onCancel={() => setDeleteDatasetTarget(null)}

@@ -14,6 +14,8 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { StatusBadge, Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 import { Sparkline } from "@/components/ui/charts";
 import { Skeleton, SkeletonStatGrid, SkeletonTable, SkeletonCard } from "@/components/ui/Skeleton";
 
@@ -24,7 +26,7 @@ function stagger(index: number, stepMs = 40): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
 }
 
-type Tab = "overview" | "models" | "activity";
+type Tab = "overview" | "detectors" | "activity";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -84,7 +86,7 @@ function DashboardContent() {
       await api.models.activate(modelId);
       await load();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Failed to activate model.");
+      setLoadError(err instanceof Error ? err.message : "Failed to activate detector.");
     } finally {
       setActivatingId(null);
     }
@@ -117,7 +119,9 @@ function DashboardContent() {
       <Container className="py-10">
         <PageHeader
           eyebrow="Dashboard"
+          subtitle={PAGE_SUBTITLES.dashboard}
           title={`Welcome${profile?.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""}`}
+          helpAnchor={HELP_ANCHORS.dashboard}
           action={
             <Link href="/process" className={buttonClasses({ variant: "primary" })}>
               Process a video
@@ -127,9 +131,9 @@ function DashboardContent() {
 
         <Tabs
           tabs={[
-            { id: "overview", label: "Overview" },
-            { id: "models", label: "Models" },
-            { id: "activity", label: "Activity" },
+            { id: "overview", label: "Overview", tooltip: TAB_TOOLTIPS.dashboard.overview },
+            { id: "detectors", label: "Detectors", tooltip: TAB_TOOLTIPS.dashboard.detectors },
+            { id: "activity", label: "Activity", tooltip: TAB_TOOLTIPS.dashboard.activity },
           ]}
           active={tab}
           onChange={setTab}
@@ -173,13 +177,13 @@ function DashboardContent() {
               </Card>
               <StatCard label="Completed" value={done} style={stagger(1, 60)} />
               <StatCard label="In progress" value={active} style={stagger(2, 60)} />
-              <StatCard label="Trained / registered models" value={models?.length ?? "—"} style={stagger(3, 60)} />
+              <StatCard label="Trained detectors" value={models?.length ?? "—"} style={stagger(3, 60)} />
             </div>
 
             <div className="mt-10 grid gap-6 lg:grid-cols-3">
               <Card className="lg:col-span-2">
                 <CardHeader
-                  title="Recent jobs"
+                  title="Recent recordings"
                   action={
                     <Link href="/process" className="text-sm font-medium text-primary hover:underline">
                       View all
@@ -220,7 +224,7 @@ function DashboardContent() {
                 <CardHeader title="Quick actions" />
                 <div className="space-y-2">
                   <Link href="/train" className={buttonClasses({ variant: "outline", className: "w-full justify-start" })}>
-                    Train a new model
+                    Train a new detector
                   </Link>
                   <Link
                     href="/process"
@@ -243,9 +247,9 @@ function DashboardContent() {
               </Card>
             </div>
           </>
-        ) : tab === "models" ? (
+        ) : tab === "detectors" ? (
           <Card>
-            <CardHeader title="Model registry" />
+            <CardHeader title="My detectors" />
             {models === null ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -256,10 +260,10 @@ function DashboardContent() {
               </div>
             ) : models.length === 0 ? (
               <EmptyState
-                title="No models yet"
+                title="No detectors yet"
                 action={
                   <Link href="/train" className={buttonClasses({ variant: "primary", size: "sm" })}>
-                    Train a model
+                    Train a detector
                   </Link>
                 }
               />
@@ -285,7 +289,7 @@ function DashboardContent() {
                     )}
                     <div className="mt-3 flex gap-2">
                       <Link
-                        href={`/models/${m.model_id}`}
+                        href={`/detectors/${m.model_id}`}
                         className={buttonClasses({ variant: "outline", size: "sm", className: "flex-1" })}
                       >
                         View details

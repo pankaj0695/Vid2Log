@@ -10,10 +10,11 @@ enum AppSection {
   dashboard,
   createActions,
   train,
-  models,
+  detectors,
   process,
   videoLogs,
   analytics,
+  help,
 }
 
 class SectionMeta {
@@ -48,8 +49,8 @@ const Map<AppSection, SectionMeta> kSections = {
     icon: Icons.tune_rounded,
     implemented: true,
   ),
-  AppSection.models: SectionMeta(
-    label: 'Models',
+  AppSection.detectors: SectionMeta(
+    label: 'My detectors',
     icon: Icons.inventory_2_outlined,
     implemented: true,
   ),
@@ -66,6 +67,14 @@ const Map<AppSection, SectionMeta> kSections = {
   AppSection.analytics: SectionMeta(
     label: 'Analytics',
     icon: Icons.bar_chart_rounded,
+    implemented: true,
+  ),
+  // Not a step in the pipeline — the manual for all of them. The sidebar
+  // pins it below a divider so the workflow above still reads as one
+  // uninterrupted sequence.
+  AppSection.help: SectionMeta(
+    label: 'Help',
+    icon: Icons.help_outline_rounded,
     implemented: true,
   ),
 };

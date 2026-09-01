@@ -15,6 +15,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Skeleton, SkeletonTable } from "@/components/ui/Skeleton";
 import { logDisplayName } from "@/lib/format";
 import { downloadCsv, findMissingCsvColumns } from "@/lib/csv";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, BUTTON_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 
 function stagger(index: number, stepMs = 35): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
@@ -224,7 +227,12 @@ function VideoLogsContent() {
   return (
     <AppShell section="video-logs" crumb="Video logs">
       <Container className="py-10">
-        <PageHeader eyebrow="Video logs" title="Video logs" />
+        <PageHeader
+          eyebrow="Video logs"
+          subtitle={PAGE_SUBTITLES["video-logs"]}
+          title="Video logs"
+          helpAnchor={HELP_ANCHORS.videoLogs}
+        />
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-neutral-500">
@@ -249,9 +257,11 @@ function VideoLogsContent() {
                 if (file) handleImportCsv(file);
               }}
             />
-            <Button size="sm" variant="outline" onClick={() => csvInputRef.current?.click()} loading={csvImporting}>
-              Import CSV log
-            </Button>
+            <Tooltip label={BUTTON_TOOLTIPS.importCsv}>
+              <Button size="sm" variant="outline" onClick={() => csvInputRef.current?.click()} loading={csvImporting}>
+                Import CSV log
+              </Button>
+            </Tooltip>
           </div>
         </div>
 
@@ -337,9 +347,11 @@ function VideoLogsContent() {
                       <Button size="sm" variant="ghost" onClick={() => toggleLogs(job.job_id)}>
                         {expandedJobId === job.job_id ? "Hide log" : "View log"}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleDownloadCsv(job)}>
-                        Download CSV
-                      </Button>
+                      <Tooltip label={BUTTON_TOOLTIPS.exportCsv}>
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadCsv(job)}>
+                          Download CSV
+                        </Button>
+                      </Tooltip>
                       <Button size="sm" variant="outline" onClick={() => startRename(job)}>
                         Rename
                       </Button>

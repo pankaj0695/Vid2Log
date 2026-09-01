@@ -13,6 +13,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../services/api_client.dart';
 import '../widgets/ui.dart';
@@ -186,19 +188,24 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
         children: [
           PageHeader(
             eyebrow: 'Video logs',
+            helpSection: kHelpAnchors.videoLogs,
+            subtitle: kPageSubtitles['video-logs'],
             title: 'Video logs',
             action: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextButton(onPressed: _downloadTemplate, child: const Text('CSV template')),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _importing ? null : _importCsv,
-                  icon: _importing
-                      ? const SizedBox(
-                          width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.upload_file_rounded, size: 18),
-                  label: Text(_importing ? 'Importing…' : 'Import CSV log'),
+                Tooltip(
+                  message: kButtonTooltips['importCsv']!,
+                  child: OutlinedButton.icon(
+                    onPressed: _importing ? null : _importCsv,
+                    icon: _importing
+                        ? const SizedBox(
+                            width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.upload_file_rounded, size: 18),
+                    label: Text(_importing ? 'Importing…' : 'Import CSV log'),
+                  ),
                 ),
               ],
             ),
@@ -282,9 +289,12 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
                     onPressed: () => setState(() => _expandedJobId = isExpanded ? null : job.jobId),
                     child: Text(isExpanded ? 'Hide log' : 'View log'),
                   ),
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _exportCsv(job),
-                    child: const Text('Download CSV'),
+                  Tooltip(
+                    message: kButtonTooltips['exportCsv']!,
+                    child: OutlinedButton(
+                      onPressed: _busy ? null : () => _exportCsv(job),
+                      child: const Text('Download CSV'),
+                    ),
                   ),
                   OutlinedButton(onPressed: () => _startRename(job), child: const Text('Rename')),
                   OutlinedButton(

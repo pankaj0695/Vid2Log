@@ -15,15 +15,20 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SkeletonCard } from "@/components/ui/Skeleton";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, BUTTON_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 
 function stagger(index: number, stepMs = 50): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
 }
 
-/** Every model you've trained, moved out of Train's old "Model registry" tab
- * into its own page — activating, renaming, and deleting models is a
- * distinct enough job from actually training one that it deserves its own
- * spot in the sidebar rather than living behind a tab. */
+/** Every detector you've trained, moved out of Train's old tab into its own
+ * page — activating, renaming, and deleting detectors is a distinct enough
+ * job from actually training one that it deserves its own spot in the
+ * sidebar rather than living behind a tab. Lives at /detectors; the backend
+ * still calls these "models" (api.models.*), which is deliberate — the
+ * rename is user-facing vocabulary only, the API contract is unchanged. */
 function ModelsContent() {
   const [models, setModels] = useState<ModelOut[] | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
@@ -42,7 +47,7 @@ function ModelsContent() {
     try {
       setModels(await api.models.list());
     } catch (err) {
-      setModelsError(err instanceof Error ? err.message : "Failed to load model registry.");
+      setModelsError(err instanceof Error ? err.message : "Failed to load your detectors.");
     }
   }
 
@@ -57,7 +62,7 @@ function ModelsContent() {
       await api.models.activate(modelId);
       await loadModels();
     } catch (err) {
-      setModelsError(err instanceof Error ? err.message : "Failed to activate model.");
+      setModelsError(err instanceof Error ? err.message : "Failed to activate detector.");
     } finally {
       setActivatingId(null);
     }
@@ -100,21 +105,23 @@ function ModelsContent() {
       setDeleteModelTarget(null);
       await loadModels();
     } catch (err) {
-      setModelsError(err instanceof Error ? err.message : "Failed to delete model.");
+      setModelsError(err instanceof Error ? err.message : "Failed to delete detector.");
     } finally {
       setDeleteModelBusy(false);
     }
   }
 
   return (
-    <AppShell section="models" crumb="Models">
+    <AppShell section="detectors" crumb="Detectors">
       <Container className="py-10">
         <PageHeader
-          eyebrow="Models"
-          title="Model registry"
+          eyebrow="Detectors"
+          subtitle={PAGE_SUBTITLES.detectors}
+          title="My detectors"
+          helpAnchor={HELP_ANCHORS.detectors}
           action={
             <Link href="/train" className={buttonClasses({ variant: "primary" })}>
-              Train a model
+              Train a detector
             </Link>
           }
         />
@@ -135,10 +142,10 @@ function ModelsContent() {
             </div>
           ) : models.length === 0 ? (
             <EmptyState
-              title="No models yet"
+              title="No detectors yet"
               action={
                 <Link href="/train" className={buttonClasses({ variant: "primary", size: "sm" })}>
-                  Train a model
+                  Train a detector
                 </Link>
               }
             />
@@ -198,21 +205,23 @@ function ModelsContent() {
                       )}
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Link
-                          href={`/models/${m.model_id}`}
+                          href={`/detectors/${m.model_id}`}
                           className={buttonClasses({ variant: "outline", size: "sm", className: "flex-1" })}
                         >
                           View details
                         </Link>
                         {!m.is_active && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => handleActivate(m.model_id)}
-                            loading={activatingId === m.model_id}
-                          >
-                            Set as active
-                          </Button>
+                          <Tooltip label={BUTTON_TOOLTIPS.activate} wrapperClassName="flex-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => handleActivate(m.model_id)}
+                              loading={activatingId === m.model_id}
+                            >
+                              Set as active
+                            </Button>
+                          </Tooltip>
                         )}
                       </div>
                       <div className="mt-2 flex gap-2">
@@ -239,7 +248,7 @@ function ModelsContent() {
 
       <ConfirmDialog
         open={deleteModelTarget !== null}
-        title="Delete this model?"
+        title="Delete this detector?"
         description={
           deleteModelTarget && (
             <>
@@ -247,14 +256,14 @@ function ModelsContent() {
               saved files. This can&apos;t be undone.
               {deleteModelTarget.is_active && (
                 <p className="mt-2 text-warning">
-                  This is your currently active model — new video jobs will have no default model until you activate
-                  another one.
+                  This is your currently active detector — new recordings will have no default detector until you
+                  activate another one.
                 </p>
               )}
             </>
           )
         }
-        confirmLabel="Delete model"
+        confirmLabel="Delete detector"
         busy={deleteModelBusy}
         onConfirm={confirmDeleteModel}
         onCancel={() => setDeleteModelTarget(null)}

@@ -15,6 +15,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Tabs } from "@/components/ui/Tabs";
 import { DonutChart } from "@/components/ui/charts";
 import { Skeleton, SkeletonStatGrid } from "@/components/ui/Skeleton";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 
 function stagger(index: number, stepMs = 45): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
@@ -83,12 +85,17 @@ function AdminContent() {
   return (
     <AppShell section="admin" crumb="Admin">
       <Container className="py-10">
-        <PageHeader eyebrow="Admin" title="Admin dashboard" />
+        <PageHeader
+          eyebrow="Admin"
+          subtitle={PAGE_SUBTITLES.admin}
+          title="Admin dashboard"
+          helpAnchor={HELP_ANCHORS.admin}
+        />
 
         <Tabs
           tabs={[
-            { id: "overview", label: "Overview" },
-            { id: "users", label: "Users" },
+            { id: "overview", label: "Overview", tooltip: TAB_TOOLTIPS.admin.overview },
+            { id: "users", label: "Users", tooltip: TAB_TOOLTIPS.admin.users },
           ]}
           active={tab}
           onChange={setTab}
@@ -118,7 +125,7 @@ function AdminContent() {
                   <StatCard label="Users" value={stats.total_users} hint={`${stats.total_admins} admin(s)`} />
                   <StatCard label="Video jobs" value={stats.total_jobs} style={stagger(1, 60)} />
                   <StatCard
-                    label="Models"
+                    label="Detectors"
                     value={stats.total_models}
                     hint={stats.active_model_id ? "1 active" : "none active"}
                     style={stagger(2, 60)}

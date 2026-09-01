@@ -16,6 +16,8 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS, FIELD_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 function stagger(index: number, stepMs = 45): CSSProperties {
@@ -155,7 +157,9 @@ function ProcessContent() {
       <Container className="py-10">
         <PageHeader
           eyebrow="Process"
+          subtitle={PAGE_SUBTITLES.process}
           title="Process a video"
+          helpAnchor={HELP_ANCHORS.process}
           action={
             <Link href="/video-logs" className={buttonClasses({ variant: "outline" })}>
               Video logs
@@ -165,8 +169,12 @@ function ProcessContent() {
 
         <Tabs
           tabs={[
-            { id: "new", label: "New job" },
-            { id: "history", label: `Job history${activeCount > 0 ? ` (${activeCount} active)` : ""}` },
+            { id: "new", label: "New recording", tooltip: TAB_TOOLTIPS.process.new },
+            {
+              id: "history",
+              label: `Recording history${activeCount > 0 ? ` (${activeCount} active)` : ""}`,
+              tooltip: TAB_TOOLTIPS.process.history,
+            },
           ]}
           active={tab}
           onChange={setTab}
@@ -177,7 +185,7 @@ function ProcessContent() {
             <CardHeader title="New job" />
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="sm:col-span-3">
-                <Label htmlFor="video-file">Screen recordings</Label>
+                <Label htmlFor="video-file" tooltip={FIELD_TOOLTIPS.process.video}>Screen recordings</Label>
                 <input
                   id="video-file"
                   ref={fileInputRef}
@@ -214,14 +222,14 @@ function ProcessContent() {
                 <p className="mt-1.5 text-sm text-neutral-500">Videos are deleted automatically once processing finishes.</p>
               </div>
               <div>
-                <Label htmlFor="model-select">Model</Label>
+                <Label htmlFor="model-select" tooltip={FIELD_TOOLTIPS.process.detector}>Detector</Label>
                 <Select
                   id="model-select"
                   value={selectedModelId}
                   onChange={(e) => setSelectedModelId(e.target.value)}
                   disabled={uploading}
                 >
-                  <option value="">Use active model</option>
+                  <option value="">Use active detector</option>
                   {models?.map((m) => (
                     <option key={m.model_id} value={m.model_id}>
                       {m.name}
@@ -231,7 +239,7 @@ function ProcessContent() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="fps">Sampling FPS</Label>
+                <Label htmlFor="fps" tooltip={FIELD_TOOLTIPS.process.fps}>Sampling FPS</Label>
                 <Input
                   id="fps"
                   type="number"

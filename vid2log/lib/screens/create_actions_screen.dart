@@ -30,6 +30,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
@@ -392,7 +394,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
 
     final name = _datasetNameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _saveError = 'Give this dataset a name.');
+      setState(() => _saveError = 'Give this action set a name.');
       return;
     }
 
@@ -402,7 +404,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     final usable = _drafts.where((d) => d.name.isNotEmpty && d.images.isNotEmpty).toList();
     if (usable.length < 2) {
       setState(() => _saveError =
-          'Keep at least 2 actions with images, a model needs 2 classes to tell apart.');
+          'Keep at least 2 actions with images, a detector needs 2 classes to tell apart.');
       return;
     }
     final names = usable.map((d) => d.name).toList();
@@ -472,10 +474,10 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this dataset?'),
+        title: const Text('Delete this action set?'),
         content: Text(
           'This permanently deletes "${dataset.name}" and all ${dataset.imageCount} of its images. '
-          'Models already trained from it are unaffected. This can\'t be undone.',
+          'Detectors already trained from it are unaffected. This can\'t be undone.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
@@ -483,7 +485,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
             style: FilledButton.styleFrom(
                 backgroundColor: VidColors.danger, foregroundColor: Colors.white),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete dataset'),
+            child: const Text('Delete action set'),
           ),
         ],
       ),
@@ -525,14 +527,16 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PageHeader(
+                PageHeader(
                   eyebrow: 'Create actions',
+                  helpSection: kHelpAnchors.createActions,
+                  subtitle: kPageSubtitles['create-actions'],
                   title: 'Auto-discover actions from a video',
                 ),
                 VidTabs<_Tab>(
                   tabs: [
-                    (_Tab.discover, 'Discover${activeCount > 0 ? ' ($activeCount active)' : ''}'),
-                    (_Tab.saved, 'Saved datasets'),
+                    (_Tab.discover, 'Discover${activeCount > 0 ? ' ($activeCount active)' : ''}', kCreateActionsTabTooltips['discover']),
+                    (_Tab.saved, 'Saved action sets', kCreateActionsTabTooltips['saved']),
                   ],
                   active: _tab,
                   onChange: (t) => setState(() => _tab = t),
@@ -620,9 +624,9 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(child: _numField('Sampling FPS', _fpsController)),
+                    Expanded(child: _numField('Sampling FPS', _fpsController, tooltip: kFieldTooltips['fps'])),
                     const SizedBox(width: 12),
-                    Expanded(child: _numField('Minimum cluster size', _minClusterController)),
+                    Expanded(child: _numField('Minimum cluster size', _minClusterController, tooltip: kFieldTooltips['minCluster'])),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -671,14 +675,11 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     );
   }
 
-  Widget _numField(String label, TextEditingController controller) {
+  Widget _numField(String label, TextEditingController controller, {String? tooltip}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
+        FieldLabel(label, tooltip: tooltip),
         TextField(controller: controller, enabled: !_starting, keyboardType: TextInputType.number),
       ],
     );
@@ -773,8 +774,10 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const PageHeader(
+              PageHeader(
                 eyebrow: 'Create actions',
+                helpSection: kHelpAnchors.createActions,
+                subtitle: kPageSubtitles['create-actions'],
                 title: 'Auto-discover actions from a video',
               ),
               panel,
@@ -788,10 +791,12 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(28, 28, 28, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
             child: PageHeader(
               eyebrow: 'Create actions',
+              helpSection: kHelpAnchors.createActions,
+              subtitle: kPageSubtitles['create-actions'],
               title: 'Auto-discover actions from a video',
             ),
           ),
@@ -849,7 +854,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const VidCardHeader(title: 'Dataset name'),
+              const VidCardHeader(title: 'Action set name'),
               TextField(
                 controller: _datasetNameController,
                 enabled: !_saving,
@@ -1021,14 +1026,20 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
                     style: TextStyle(
                         color: VidColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
               ),
-              OutlinedButton(
-                onPressed: _saving ? null : _addAction,
-                child: const Text('+ Add new action'),
+              Tooltip(
+                message: kButtonTooltips['addAction']!,
+                child: OutlinedButton(
+                  onPressed: _saving ? null : _addAction,
+                  child: const Text('+ Add new action'),
+                ),
               ),
               const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: (mergeCount < 2 || _saving) ? null : _mergeSelected,
-                child: Text('Merge selected${mergeCount > 1 ? ' ($mergeCount)' : ''}'),
+              Tooltip(
+                message: kButtonTooltips['merge']!,
+                child: OutlinedButton(
+                  onPressed: (mergeCount < 2 || _saving) ? null : _mergeSelected,
+                  child: Text('Merge selected${mergeCount > 1 ? ' ($mergeCount)' : ''}'),
+                ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -1045,7 +1056,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
             children: [
               FilledButton(
                 onPressed: (_saving || _drafts.isEmpty) ? null : _save,
-                child: Text(_reviewMode == _ReviewMode.edit ? 'Save changes' : 'Save dataset'),
+                child: Text(_reviewMode == _ReviewMode.edit ? 'Save changes' : 'Save action set'),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
@@ -1071,7 +1082,7 @@ class _CreateActionsScreenState extends State<CreateActionsScreen> {
     }
     if (datasets.isEmpty) {
       return const EmptyStateWidget(
-        title: 'No saved datasets yet',
+        title: 'No saved action sets yet',
         subtitle: 'Discover actions from a video on the Discover tab, review them, and save.',
       );
     }

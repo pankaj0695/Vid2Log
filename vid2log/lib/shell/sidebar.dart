@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
 import '../theme/colors.dart';
 import 'section.dart';
 
@@ -23,6 +24,53 @@ class Sidebar extends StatelessWidget {
 
   final AppSection active;
   final ValueChanged<AppSection> onSelect;
+
+  Widget _navItem(AppSection section, SectionMeta meta) {
+    final isActive = section == active;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Tooltip(
+        message: kNavTooltips[section] ?? '',
+        waitDuration: const Duration(milliseconds: 400),
+        child: Material(
+          color: isActive ? VidColors.primaryTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => onSelect(section),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    meta.icon,
+                    size: 19,
+                    color: isActive ? VidColors.primaryHover : VidColors.neutral500,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      meta.label,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isActive ? VidColors.primaryHover : VidColors.neutral500,
+                      ),
+                    ),
+                  ),
+                  if (!meta.implemented)
+                    Text(
+                      'soon',
+                      style: TextStyle(fontSize: 11, color: VidColors.neutral400),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,48 +102,19 @@ class Sidebar extends StatelessWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: kSections.entries.map((e) {
-                final isActive = e.key == active;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Material(
-                    color: isActive ? VidColors.primaryTint : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => onSelect(e.key),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                        child: Row(
-                          children: [
-                            Icon(
-                              e.value.icon,
-                              size: 19,
-                              color: isActive ? VidColors.primaryHover : VidColors.neutral500,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                e.value.label,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: isActive ? VidColors.primaryHover : VidColors.neutral500,
-                                ),
-                              ),
-                            ),
-                            if (!e.value.implemented)
-                              Text(
-                                'soon',
-                                style: TextStyle(fontSize: 11, color: VidColors.neutral400),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+              children: [
+                // The workflow items, in pipeline order.
+                for (final e in kSections.entries)
+                  if (e.key != AppSection.help) _navItem(e.key, e.value),
+                // Help sits apart: it documents all of the above rather than
+                // being another step in the sequence.
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  child: Divider(height: 1, color: VidColors.neutral200),
+                ),
+                if (kSections[AppSection.help] case final help?)
+                  _navItem(AppSection.help, help),
+              ],
             ),
           ),
           const _ThemeToggleRow(),

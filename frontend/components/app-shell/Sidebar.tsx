@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useClickOutside } from "@/lib/useClickOutside";
 import { ThemeToggleSegmented } from "@/components/ThemeToggle";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { NAV_TOOLTIPS } from "@/lib/copy";
 import {
   IconGrid,
   IconSliders,
@@ -15,6 +17,7 @@ import {
   IconBox,
   IconList,
   IconLayers,
+  IconHelp,
   IconSidebarToggle,
 } from "./icons";
 
@@ -22,11 +25,12 @@ export type SectionId =
   | "dashboard"
   | "train"
   | "process"
-  | "models"
+  | "detectors"
   | "video-logs"
   | "create-actions"
   | "analytics"
-  | "admin";
+  | "admin"
+  | "help";
 
 const NAV: {
   id: SectionId;
@@ -37,7 +41,7 @@ const NAV: {
   { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: IconGrid },
   { id: "create-actions", href: "/create-actions", label: "Create actions", icon: IconLayers },
   { id: "train", href: "/train", label: "Train", icon: IconSliders },
-  { id: "models", href: "/models", label: "Models", icon: IconBox },
+  { id: "detectors", href: "/detectors", label: "My detectors", icon: IconBox },
   { id: "process", href: "/process", label: "Process video", icon: IconFilm },
   { id: "video-logs", href: "/video-logs", label: "Video logs", icon: IconList },
   {
@@ -63,6 +67,47 @@ function LogoMark() {
   return <img src="/vid2log-logo.png" alt="" width={28} height={28} className="shrink-0" />;
 }
 
+/** Help sits apart from the workflow items above it: it's not a step in the
+ * pipeline, it's the manual for all of them. Pinned below a divider so the
+ * numbered flow (Create actions → Train → … → Analytics) still reads as one
+ * uninterrupted sequence. */
+const HELP_ITEM = {
+  id: "help" as const,
+  href: "/help",
+  label: "Help",
+  icon: IconHelp,
+};
+
+function NavItem({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: { id: SectionId; href: string; label: string; icon: typeof IconGrid };
+  active: SectionId;
+  onNavigate?: () => void;
+}) {
+  const isActive = item.id === active;
+  const Icon = item.icon;
+  return (
+    <Tooltip label={NAV_TOOLTIPS[item.id]} side="right" wrapperClassName="block">
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        aria-current={isActive ? "page" : undefined}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-primary-tint text-primary-hover"
+            : "text-neutral-500 hover:bg-neutral-100 hover:text-text"
+        }`}
+      >
+        <Icon className="shrink-0" />
+        {item.label}
+      </Link>
+    </Tooltip>
+  );
+}
+
 function NavList({
   active,
   onNavigate,
@@ -84,26 +129,14 @@ function NavList({
     : NAV;
 
   return (
-    <nav className="flex-1 space-y-1 px-3" aria-label="Primary">
-      {items.map((item) => {
-        const isActive = item.id === active;
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.id}
-            href={item.href}
-            onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              isActive
-                ? "bg-primary-tint text-primary-hover"
-                : "text-neutral-500 hover:bg-neutral-100 hover:text-text"
-            }`}
-          >
-            <Icon className="shrink-0" />
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="flex-1 px-3" aria-label="Primary">
+      <div className="space-y-1">
+        {items.map((item) => (
+          <NavItem key={item.id} item={item} active={active} onNavigate={onNavigate} />
+        ))}
+      </div>
+      <div className="my-2 border-t border-neutral-100" />
+      <NavItem item={HELP_ITEM} active={active} onNavigate={onNavigate} />
     </nav>
   );
 }

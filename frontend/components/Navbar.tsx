@@ -24,9 +24,10 @@ const APP_SHELL_PREFIXES = [
   "/process",
   "/analytics",
   "/admin",
-  "/models",
+  "/detectors",
   "/video-logs",
   "/create-actions",
+  "/help",
 ];
 
 function initials(name: string | null, email: string | null): string {

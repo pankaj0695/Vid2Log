@@ -4,13 +4,15 @@ import 'screens/analytics_screen.dart';
 import 'screens/create_actions_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/job_detail_screen.dart';
-import 'screens/models_screen.dart';
+import 'screens/detectors_screen.dart';
+import 'screens/help_screen.dart';
 import 'screens/process_screen.dart';
 import 'screens/train_screen.dart';
 import 'screens/video_logs_screen.dart';
 import 'services/api_client.dart';
 import 'services/sidecar_service.dart';
 import 'shell/app_shell.dart';
+import 'shell/help_navigator.dart';
 import 'shell/section.dart';
 import 'theme/app_theme.dart';
 import 'theme/colors.dart';
@@ -105,6 +107,18 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   AppSection _section = AppSection.dashboard;
 
+  /// Which Help section to scroll to when Help is the active section. Set by
+  /// the `?` button on another screen (see shell/help_navigator.dart); null
+  /// when Help was opened from the sidebar, which starts at the top.
+  String? _helpSection;
+
+  void _openHelp(String sectionId) {
+    setState(() {
+      _section = AppSection.help;
+      _helpSection = sectionId;
+    });
+  }
+
   void _openJob(String jobId) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -126,10 +140,10 @@ class _HomeShellState extends State<HomeShell> {
       case AppSection.train:
         return TrainScreen(
           apiClient: widget.apiClient,
-          onOpenModels: () => setState(() => _section = AppSection.models),
+          onOpenModels: () => setState(() => _section = AppSection.detectors),
         );
-      case AppSection.models:
-        return ModelsScreen(apiClient: widget.apiClient);
+      case AppSection.detectors:
+        return DetectorsScreen(apiClient: widget.apiClient);
       case AppSection.process:
         return ProcessScreen(
           apiClient: widget.apiClient,
@@ -140,16 +154,26 @@ class _HomeShellState extends State<HomeShell> {
         return VideoLogsScreen(apiClient: widget.apiClient);
       case AppSection.analytics:
         return AnalyticsScreen(apiClient: widget.apiClient);
+      case AppSection.help:
+        return HelpScreen(initialSection: _helpSection);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      section: _section,
-      onSelectSection: (s) => setState(() => _section = s),
-      sidecar: widget.sidecar,
-      child: _buildContent(),
+    return HelpNavigator(
+      openHelp: _openHelp,
+      child: AppShell(
+        section: _section,
+        // Choosing Help from the sidebar clears any pending deep-link target,
+        // so it opens at the top rather than wherever the last `?` pointed.
+        onSelectSection: (s) => setState(() {
+          _section = s;
+          if (s == AppSection.help) _helpSection = null;
+        }),
+        sidecar: widget.sidecar,
+        child: _buildContent(),
+      ),
     );
   }
 }

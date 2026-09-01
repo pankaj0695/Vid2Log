@@ -18,6 +18,9 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS, BUTTON_TOOLTIPS, FIELD_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 import { ImageDropzone } from "@/components/train/ImageDropzone";
 import { MetricsReport } from "@/components/train/MetricsReport";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -118,11 +121,11 @@ function isRetryable(job: TrainJobOut): boolean {
 const STAGE_LABELS: Record<string, string> = {
   starting: "Starting",
   downloading: "Downloading images",
-  training_cnn: "Training model",
+  training_cnn: "Training detector",
   evaluating_cnn: "Evaluating on test set",
   extracting_text: "Reading on-screen text (OCR)",
   tuning_fusion: "Tuning text/image fusion",
-  saving_model: "Saving model",
+  saving_model: "Saving detector",
 };
 
 function progressLabel(progress: TrainProgress | null): string | null {
@@ -283,7 +286,7 @@ function TrainContent() {
     setImportError(null);
     const dataset = datasets?.find((d) => d.dataset_id === selectedDatasetId);
     if (!dataset) {
-      setImportError("Pick a saved dataset first.");
+      setImportError("Pick a saved action set first.");
       return;
     }
     const classNames = Array.from(selectedImportClasses);
@@ -338,7 +341,7 @@ function TrainContent() {
       setClasses((prev) => (isPristineDefaultClasses(prev) ? [] : prev));
       setSelectedDatasetId("");
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : "Failed to import dataset.");
+      setImportError(err instanceof Error ? err.message : "Failed to import action set.");
     } finally {
       setImporting(false);
     }
@@ -453,7 +456,7 @@ function TrainContent() {
       .filter((c) => c.name && c.files.length > 0);
 
     if (!trimmedName) {
-      setFormError("Give your model a name.");
+      setFormError("Give your detector a name.");
       return;
     }
     if (usable.length + importedClasses.length < 2) {
@@ -538,18 +541,20 @@ function TrainContent() {
       <Container className="py-10">
         <PageHeader
           eyebrow="Train"
-          title="Train a model"
+          subtitle={PAGE_SUBTITLES.train}
+          title="Train a detector"
+          helpAnchor={HELP_ANCHORS.train}
           action={
-            <Link href="/models" className={buttonClasses({ variant: "outline" })}>
-              Model registry
+            <Link href="/detectors" className={buttonClasses({ variant: "outline" })}>
+              My detectors
             </Link>
           }
         />
 
         <Tabs
           tabs={[
-            { id: "train", label: "Train a model" },
-            { id: "jobs", label: "Training jobs" },
+            { id: "train", label: "Train a detector", tooltip: TAB_TOOLTIPS.train.train },
+            { id: "jobs", label: "Training sessions", tooltip: TAB_TOOLTIPS.train.jobs },
           ]}
           active={tab}
           onChange={setTab}
@@ -558,9 +563,9 @@ function TrainContent() {
         {tab === "train" && (
           <div className="max-w-3xl space-y-6">
             <Card>
-              <CardHeader title="Model details" />
+              <CardHeader title="Detector details" />
               <div>
-                <Label htmlFor="model-name">Model name</Label>
+                <Label htmlFor="model-name" tooltip={FIELD_TOOLTIPS.train.detectorName}>Detector name</Label>
                 <Input
                   id="model-name"
                   placeholder="e.g. math-game-screens-v1"
@@ -582,7 +587,7 @@ function TrainContent() {
               {showAdvanced && (
                 <div className="mt-4 grid gap-4 border-t border-neutral-100 pt-4 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="epochs">Training epochs</Label>
+                    <Label htmlFor="epochs" tooltip={FIELD_TOOLTIPS.train.epochs}>Training epochs</Label>
                     <Input
                       id="epochs"
                       type="number"
@@ -594,7 +599,7 @@ function TrainContent() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="batch-size">Batch size</Label>
+                    <Label htmlFor="batch-size" tooltip={FIELD_TOOLTIPS.train.batchSize}>Batch size</Label>
                     <Input
                       id="batch-size"
                       type="number"
@@ -606,7 +611,7 @@ function TrainContent() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="learning-rate">Learning rate</Label>
+                    <Label htmlFor="learning-rate" tooltip={FIELD_TOOLTIPS.train.learningRate}>Learning rate</Label>
                     <Input
                       id="learning-rate"
                       type="number"
@@ -619,7 +624,7 @@ function TrainContent() {
                     />
                   </div>
                   <div>
-                    <Label>Train / val / test split (%)</Label>
+                    <Label tooltip={FIELD_TOOLTIPS.train.split}>Train / val / test split (%)</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -661,13 +666,13 @@ function TrainContent() {
 
             <Card>
               <CardHeader
-                title="Import from a saved dataset"
+                title="Import from a saved action set"
               />
               {datasets === null ? (
-                <p className="text-sm text-neutral-500">Loading saved datasets…</p>
+                <p className="text-sm text-neutral-500">Loading saved action sets…</p>
               ) : datasets.length === 0 ? (
                 <p className="text-sm text-neutral-500">
-                  No saved datasets yet.{" "}
+                  No saved action sets yet.{" "}
                   <Link href="/create-actions" className="font-medium text-primary hover:underline">
                     Create one
                   </Link>{" "}
@@ -677,14 +682,14 @@ function TrainContent() {
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="min-w-[240px] flex-1">
-                      <Label htmlFor="import-dataset">Dataset</Label>
+                      <Label htmlFor="import-dataset" tooltip={FIELD_TOOLTIPS.train.importActionSet}>Action set</Label>
                       <Select
                         id="import-dataset"
                         value={selectedDatasetId}
                         onChange={(e) => setSelectedDatasetId(e.target.value)}
                         disabled={isBusy || importing}
                       >
-                        <option value="">Choose a saved dataset…</option>
+                        <option value="">Choose a saved action set…</option>
                         {datasets.map((d) => (
                           <option key={d.dataset_id} value={d.dataset_id}>
                             {d.name} ({d.classes.length} actions, {d.total_images} images)
@@ -807,7 +812,7 @@ function TrainContent() {
               <Card key={cls.id}>
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div className="flex-1">
-                    <Label htmlFor={`class-name-${cls.id}`}>Action {i + 1} name</Label>
+                    <Label htmlFor={`class-name-${cls.id}`} tooltip={FIELD_TOOLTIPS.train.actionName}>Action {i + 1} name</Label>
                     <Input
                       id={`class-name-${cls.id}`}
                       value={cls.name}
@@ -857,7 +862,7 @@ function TrainContent() {
                     <div className="flex items-center gap-3 text-sm text-neutral-600">
                       <Spinner size="sm" />
                       {progressLabel(trainJob.progress) ||
-                        "Training in progress — this can take a few minutes depending on dataset size and epochs."}
+                        "Training in progress — this can take a few minutes depending on how many images there are and the number of epochs."}
                     </div>
                     {trainJob.progress?.stage === "training_cnn" &&
                       trainJob.progress.epoch != null &&
@@ -953,14 +958,16 @@ function TrainContent() {
                       <div className="flex items-center gap-2">
                         <StatusBadge status={job.status} />
                         {isRetryable(job) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRetry(job.training_job_id)}
-                            loading={retryingId === job.training_job_id}
-                          >
-                            Retry
-                          </Button>
+                          <Tooltip label={BUTTON_TOOLTIPS.retry}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRetry(job.training_job_id)}
+                              loading={retryingId === job.training_job_id}
+                            >
+                              Retry
+                            </Button>
+                          </Tooltip>
                         )}
                         {(job.status === "done" || job.status === "failed") && (
                           <Button

@@ -1,5 +1,5 @@
-/// Ported from frontend/app/models/page.tsx + models/[id]/page.tsx, the
-/// local Model Registry: every locally-trained model plus the bundled
+/// Ported from frontend/app/detectors/page.tsx + detectors/[id]/page.tsx,
+/// the local detector library: every locally-trained detector plus the bundled
 /// default, with activate/rename/delete and the full metrics report
 /// (CNN-only vs text-only vs fused, per-action precision/recall/F1, and the
 /// confusion matrix) that Teachable Machine never exposed.
@@ -7,20 +7,22 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
 import '../widgets/ui.dart';
 
-class ModelsScreen extends StatefulWidget {
-  const ModelsScreen({super.key, required this.apiClient});
+class DetectorsScreen extends StatefulWidget {
+  const DetectorsScreen({super.key, required this.apiClient});
 
   final ApiClient apiClient;
 
   @override
-  State<ModelsScreen> createState() => _ModelsScreenState();
+  State<DetectorsScreen> createState() => _DetectorsScreenState();
 }
 
-class _ModelsScreenState extends State<ModelsScreen> {
+class _DetectorsScreenState extends State<DetectorsScreen> {
   List<ModelInfo>? _models;
   String? _error;
   String? _busyId;
@@ -63,7 +65,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rename model'),
+        title: const Text('Rename detector'),
         content: TextField(controller: controller, autofocus: true),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
@@ -89,7 +91,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this model?'),
+        title: const Text('Delete this detector?'),
         content: Text(
           'This permanently deletes "${model.name}" and its weights from disk. '
           'Logs already produced with it are unaffected. This can\'t be undone.',
@@ -99,7 +101,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: VidColors.danger, foregroundColor: Colors.white),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete model'),
+            child: const Text('Delete detector'),
           ),
         ],
       ),
@@ -116,7 +118,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
 
   void _openDetail(ModelInfo model) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ModelDetailScreen(model: model)),
+      MaterialPageRoute(builder: (_) => DetectorDetailScreen(model: model)),
     );
   }
 
@@ -128,8 +130,10 @@ class _ModelsScreenState extends State<ModelsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(
-            eyebrow: 'Models',
-            title: 'Models',
+            eyebrow: 'Detectors',
+            helpSection: kHelpAnchors.detectors,
+            subtitle: kPageSubtitles['detectors'],
+            title: 'My detectors',
             action: IconButton(
               tooltip: 'Refresh',
               onPressed: _load,
@@ -217,9 +221,12 @@ class _ModelsScreenState extends State<ModelsScreen> {
               runSpacing: 8,
               children: [
                 if (!model.isActive)
-                  OutlinedButton(
-                    onPressed: busy ? null : () => _activate(model),
-                    child: Text(busy ? 'Activating…' : 'Activate'),
+                  Tooltip(
+                    message: kButtonTooltips['activate']!,
+                    child: OutlinedButton(
+                      onPressed: busy ? null : () => _activate(model),
+                      child: Text(busy ? 'Activating…' : 'Activate'),
+                    ),
                   ),
                 if (model.metrics != null)
                   TextButton(onPressed: () => _openDetail(model), child: const Text('View details')),
@@ -239,7 +246,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
             if (model.isBundled) ...[
               const SizedBox(height: 10),
               Text(
-                'Ships inside the app and is used whenever no trained model is active. It can\'t be renamed or deleted.',
+                'Ships inside the app and is used whenever no trained detector is active. It can\'t be renamed or deleted.',
                 style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
               ),
             ],
@@ -253,8 +260,8 @@ class _ModelsScreenState extends State<ModelsScreen> {
 /// Full metrics report for one model, the three-way comparison the cloud
 /// backend produces (see backend/app/services/training_pipeline.py's
 /// docstring for why all three are reported, not just the best one).
-class ModelDetailScreen extends StatelessWidget {
-  const ModelDetailScreen({super.key, required this.model});
+class DetectorDetailScreen extends StatelessWidget {
+  const DetectorDetailScreen({super.key, required this.model});
 
   final ModelInfo model;
 
@@ -265,7 +272,7 @@ class ModelDetailScreen extends StatelessWidget {
       backgroundColor: VidColors.bg,
       appBar: AppBar(title: Text(model.name)),
       body: metrics == null
-          ? const EmptyStateWidget(title: 'No metrics for this model')
+          ? const EmptyStateWidget(title: 'No metrics for this detector')
           : SingleChildScrollView(
               padding: const EdgeInsets.all(28),
               child: Column(

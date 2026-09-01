@@ -17,6 +17,9 @@ import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MetricsReport } from "@/components/train/MetricsReport";
 import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, BUTTON_TOOLTIPS, FIELD_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -44,9 +47,9 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
       setModel(await api.models.get(modelId));
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        setError("This model doesn't exist or has been removed.");
+        setError("This detector doesn't exist or has been removed.");
       } else {
-        setError(err instanceof Error ? err.message : "Failed to load model.");
+        setError(err instanceof Error ? err.message : "Failed to load detector.");
       }
     }
   }
@@ -63,7 +66,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
       await api.models.activate(modelId);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to activate model.");
+      setError(err instanceof Error ? err.message : "Failed to activate detector.");
     } finally {
       setActivating(false);
     }
@@ -99,20 +102,20 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
     setDeleteError(null);
     try {
       await api.models.remove(modelId);
-      // Same destination as the "Back to models" link above — this model no
-      // longer exists to have its own detail page.
-      router.push("/models");
+      // Same destination as the "Back to detectors" link above — this
+      // detector no longer exists to have its own detail page.
+      router.push("/detectors");
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete model.");
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete detector.");
       setDeleteBusy(false);
     }
   }
 
   return (
-    <AppShell section="models" crumb="Models">
+    <AppShell section="detectors" crumb="Detectors">
       <Container className="py-10">
-      <Link href="/models" className="mb-4 inline-block text-sm font-medium text-primary hover:underline">
-        ← Back to models
+      <Link href="/detectors" className="mb-4 inline-block text-sm font-medium text-primary hover:underline">
+        ← Back to detectors
       </Link>
 
       {error && (
@@ -147,24 +150,30 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
       {model && (
         <div className="animate-fade-in-up">
           <PageHeader
-            eyebrow="Model"
+            eyebrow="Detector"
+            subtitle={PAGE_SUBTITLES["detector-detail"]}
             title={model.name}
             description={`${model.labels.length} actions · created ${formatDate(model.created_at)}`}
+            helpAnchor={HELP_ANCHORS.detectors}
             action={
               <div className="flex flex-wrap items-center gap-2">
                 {model.is_active ? (
                   <Badge tone="success">active</Badge>
                 ) : (
-                  <Button onClick={handleActivate} loading={activating}>
-                    Set as active
-                  </Button>
+                  <Tooltip label={BUTTON_TOOLTIPS.activate}>
+                    <Button onClick={handleActivate} loading={activating}>
+                      Set as active
+                    </Button>
+                  </Tooltip>
                 )}
-                <Link
-                  href={`/train?retrainModel=${model.model_id}`}
-                  className={buttonClasses({ variant: "outline" })}
-                >
-                  Retrain with new settings
-                </Link>
+                <Tooltip label={BUTTON_TOOLTIPS.retrain}>
+                  <Link
+                    href={`/train?retrainModel=${model.model_id}`}
+                    className={buttonClasses({ variant: "outline" })}
+                  >
+                    Retrain with new settings
+                  </Link>
+                </Tooltip>
                 <Button variant="outline" onClick={startRename}>
                   Rename
                 </Button>
@@ -177,7 +186,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
 
           {renaming && (
             <Card className="mb-6 max-w-sm">
-              <Label htmlFor="model-rename">Model name</Label>
+              <Label htmlFor="model-rename" tooltip={FIELD_TOOLTIPS.detectors.rename}>Detector name</Label>
               <Input
                 id="model-rename"
                 autoFocus
@@ -224,7 +233,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
                 </>
               ) : (
                 <Card>
-                  <p className="text-sm text-neutral-500">No metrics were recorded for this model.</p>
+                  <p className="text-sm text-neutral-500">No metrics were recorded for this detector.</p>
                 </Card>
               )}
             </div>
@@ -253,7 +262,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
                     <dd className="font-medium text-text">{formatDate(model.created_at)}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt className="text-neutral-500">Dataset version</dt>
+                    <dt className="text-neutral-500">Action set version</dt>
                     <dd className="font-medium text-text">{model.dataset_version || "—"}</dd>
                   </div>
                   {model.fusion_alpha != null && (
@@ -286,7 +295,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
 
       <ConfirmDialog
         open={deleteOpen}
-        title="Delete this model?"
+        title="Delete this detector?"
         description={
           model && (
             <>
@@ -302,7 +311,7 @@ function ModelDetailContent({ modelId }: { modelId: string }) {
             </>
           )
         }
-        confirmLabel="Delete model"
+        confirmLabel="Delete detector"
         busy={deleteBusy}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteOpen(false)}

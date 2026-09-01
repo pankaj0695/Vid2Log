@@ -1,21 +1,23 @@
-/// Ported from frontend/app/dashboard/page.tsx, Overview/Models/Activity
+/// Ported from frontend/app/dashboard/page.tsx, Overview/Detectors/Activity
 /// tabs. Two things are simplified versus the web version, both because
-/// there's genuinely less to show in a single-user offline app: "Trained /
-/// registered models" is always 1 (the bundled default, see
+/// there's genuinely less to show in a single-user offline app: "Registered
+/// detectors" is always 1 (the bundled default, see
 /// python_sidecar/app/ml/default_model/), since local training isn't wired
-/// up yet (Models screen explains this), and the Activity feed only has
-/// video jobs, not training jobs, for the same reason.
+/// up yet (the My detectors screen explains this), and the Activity feed
+/// only has video jobs, not training jobs, for the same reason.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
 import '../shell/section.dart';
 import '../widgets/ui.dart';
 
-enum _DashTab { overview, models, activity }
+enum _DashTab { overview, detectors, activity }
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -82,6 +84,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           PageHeader(
             eyebrow: 'Dashboard',
+            helpSection: kHelpAnchors.dashboard,
+            subtitle: kPageSubtitles['dashboard'],
             title: 'Welcome',
             action: FilledButton.icon(
               onPressed: () => widget.onNavigate(AppSection.process),
@@ -90,10 +94,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           VidTabs<_DashTab>(
-            tabs: const [
-              (_DashTab.overview, 'Overview'),
-              (_DashTab.models, 'Models'),
-              (_DashTab.activity, 'Activity'),
+            tabs: [
+              (_DashTab.overview, 'Overview', kDashboardTabTooltips['overview']),
+              (_DashTab.detectors, 'Detectors', kDashboardTabTooltips['detectors']),
+              (_DashTab.activity, 'Activity', kDashboardTabTooltips['activity']),
             ],
             active: _tab,
             onChange: (t) => setState(() => _tab = t),
@@ -110,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           else
             switch (_tab) {
               _DashTab.overview => _buildOverview(),
-              _DashTab.models => _buildModels(),
+              _DashTab.detectors => _buildModels(),
               _DashTab.activity => _buildActivity(),
             },
         ],
@@ -134,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             StatCard(label: 'Total jobs', value: '${jobs.length}'),
             StatCard(label: 'Completed', value: '$done'),
             StatCard(label: 'In progress', value: '$active'),
-            StatCard(label: 'Registered models', value: '${_models?.length ?? 1}'),
+            StatCard(label: 'Registered detectors', value: '${_models?.length ?? 1}'),
           ];
           return GridView.count(
             crossAxisCount: cols,
@@ -175,7 +179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           VidCardHeader(
-            title: 'Recent jobs',
+            title: 'Recent recordings',
             action: TextButton(
               onPressed: () => widget.onNavigate(AppSection.process),
               child: const Text('View all'),
@@ -227,7 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const VidCardHeader(title: 'Quick actions'),
-          _QuickAction(label: 'Train a new model', onTap: () => widget.onNavigate(AppSection.train)),
+          _QuickAction(label: 'Train a new detector', onTap: () => widget.onNavigate(AppSection.train)),
           const SizedBox(height: 8),
           _QuickAction(label: 'Process a video', onTap: () => widget.onNavigate(AppSection.process)),
           const SizedBox(height: 8),
@@ -249,14 +253,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           VidCardHeader(
-            title: 'Model registry',
+            title: 'My detectors',
             action: TextButton(
-              onPressed: () => widget.onNavigate(AppSection.models),
+              onPressed: () => widget.onNavigate(AppSection.detectors),
               child: const Text('View all'),
             ),
           ),
           if (models.isEmpty)
-            const EmptyStateWidget(title: 'No models yet')
+            const EmptyStateWidget(title: 'No detectors yet')
           else
             ...models.map((m) {
               final headline = m.metrics?.headline;

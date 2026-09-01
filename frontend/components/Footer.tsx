@@ -12,9 +12,10 @@ const APP_SHELL_PREFIXES = [
   "/process",
   "/analytics",
   "/admin",
-  "/models",
+  "/detectors",
   "/video-logs",
   "/create-actions",
+  "/help",
 ];
 
 export function Footer() {

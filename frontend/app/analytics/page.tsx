@@ -23,6 +23,9 @@ import { Input, Label, Select } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { PAGE_SUBTITLES, TAB_TOOLTIPS, BUTTON_TOOLTIPS, FIELD_TOOLTIPS } from "@/lib/copy";
+import { HELP_ANCHORS } from "@/lib/helpContent";
 import {
   BarChart,
   DonutChart,
@@ -488,14 +491,19 @@ function AnalyticsContent() {
   return (
     <AppShell section="analytics" crumb="Analytics">
       <Container className="py-10">
-        <PageHeader eyebrow="Analytics" title="Pattern analysis" />
+        <PageHeader
+          eyebrow="Analytics"
+          subtitle={PAGE_SUBTITLES.analytics}
+          title="Pattern analysis"
+          helpAnchor={HELP_ANCHORS.analytics}
+        />
 
         <Tabs
           tabs={[
-            { id: "overview", label: "Overview" },
-            { id: "spm", label: "Sequential patterns (SPM)" },
-            { id: "dsm", label: "Differential patterns (DSM)" },
-            { id: "timeline", label: "Video timeline" },
+            { id: "overview", label: "Overview", tooltip: TAB_TOOLTIPS.analytics.overview },
+            { id: "spm", label: "Sequential patterns (SPM)", tooltip: TAB_TOOLTIPS.analytics.spm },
+            { id: "dsm", label: "Differential patterns (DSM)", tooltip: TAB_TOOLTIPS.analytics.dsm },
+            { id: "timeline", label: "Video timeline", tooltip: TAB_TOOLTIPS.analytics.timeline },
           ]}
           active={tab}
           onChange={setTab}
@@ -567,20 +575,24 @@ function AnalyticsContent() {
                     Download this report as a spreadsheet or a formatted PDF.
                   </p>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadOverviewCsv}
-                    >
-                      Download CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadOverviewPdfReport}
-                    >
-                      Download PDF
-                    </Button>
+                    <Tooltip label={BUTTON_TOOLTIPS.exportCsv}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadOverviewCsv}
+                      >
+                        Download CSV
+                      </Button>
+                    </Tooltip>
+                    <Tooltip label={BUTTON_TOOLTIPS.downloadPdf}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadOverviewPdfReport}
+                      >
+                        Download PDF
+                      </Button>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -720,7 +732,7 @@ function AnalyticsContent() {
               <CardHeader title="Parameters" />
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="spm-support">
+                  <Label htmlFor="spm-support" tooltip={FIELD_TOOLTIPS.analytics.sSupport}>
                     S Support Threshold (fraction of videos)
                   </Label>
                   <Input
@@ -734,7 +746,7 @@ function AnalyticsContent() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="spm-topk">Top K patterns</Label>
+                  <Label htmlFor="spm-topk" tooltip={FIELD_TOOLTIPS.analytics.topK}>Top K patterns</Label>
                   <Input
                     id="spm-topk"
                     type="number"
@@ -745,7 +757,7 @@ function AnalyticsContent() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="spm-sortby">Sort by</Label>
+                  <Label htmlFor="spm-sortby" tooltip={FIELD_TOOLTIPS.analytics.sortBy}>Sort by</Label>
                   <Select
                     id="spm-sortby"
                     value={spmSortBy}
@@ -769,7 +781,7 @@ function AnalyticsContent() {
                 {spmShowAdvanced && (
                   <div className="grid gap-4 border-t border-neutral-100 pt-4 sm:grid-cols-2">
                     <div>
-                      <Label htmlFor="spm-window-min">Sliding Window Min</Label>
+                      <Label htmlFor="spm-window-min" tooltip={FIELD_TOOLTIPS.analytics.windowMin}>Sliding Window Min</Label>
                       <Input
                         id="spm-window-min"
                         type="number"
@@ -782,7 +794,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="spm-window-max">Sliding Window Max</Label>
+                      <Label htmlFor="spm-window-max" tooltip={FIELD_TOOLTIPS.analytics.windowMax}>Sliding Window Max</Label>
                       <Input
                         id="spm-window-max"
                         type="number"
@@ -795,7 +807,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="spm-min-gap">Min Gap</Label>
+                      <Label htmlFor="spm-min-gap" tooltip={FIELD_TOOLTIPS.analytics.minGap}>Min Gap</Label>
                       <Input
                         id="spm-min-gap"
                         type="number"
@@ -805,7 +817,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="spm-max-gap">
+                      <Label htmlFor="spm-max-gap" tooltip={FIELD_TOOLTIPS.analytics.maxGap}>
                         Max Gap (blank = unlimited)
                       </Label>
                       <Input
@@ -821,7 +833,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <Label htmlFor="spm-i-support">
+                      <Label htmlFor="spm-i-support" tooltip={FIELD_TOOLTIPS.analytics.iSupport}>
                         I Support Threshold (min avg occurrences/video)
                       </Label>
                       <Input
@@ -968,7 +980,7 @@ function AnalyticsContent() {
               <CardHeader title="Parameters" />
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="dsm-support">S Support Threshold</Label>
+                  <Label htmlFor="dsm-support" tooltip={FIELD_TOOLTIPS.analytics.sSupport}>S Support Threshold</Label>
                   <Input
                     id="dsm-support"
                     type="number"
@@ -980,7 +992,7 @@ function AnalyticsContent() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="dsm-topk">Top K patterns</Label>
+                  <Label htmlFor="dsm-topk" tooltip={FIELD_TOOLTIPS.analytics.topK}>Top K patterns</Label>
                   <Input
                     id="dsm-topk"
                     type="number"
@@ -991,7 +1003,7 @@ function AnalyticsContent() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="dsm-test-type">Test Type</Label>
+                  <Label htmlFor="dsm-test-type" tooltip={FIELD_TOOLTIPS.analytics.testType}>Test Type</Label>
                   <Select
                     id="dsm-test-type"
                     value={dsmTestType}
@@ -1020,7 +1032,7 @@ function AnalyticsContent() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="dsm-p-threshold">Threshold P-value</Label>
+                  <Label htmlFor="dsm-p-threshold" tooltip={FIELD_TOOLTIPS.analytics.pValue}>Threshold P-value</Label>
                   <Input
                     id="dsm-p-threshold"
                     type="number"
@@ -1047,7 +1059,7 @@ function AnalyticsContent() {
                 {dsmShowAdvanced && (
                   <div className="grid gap-4 border-t border-neutral-100 pt-4 sm:grid-cols-2">
                     <div>
-                      <Label htmlFor="dsm-window-min">Sliding Window Min</Label>
+                      <Label htmlFor="dsm-window-min" tooltip={FIELD_TOOLTIPS.analytics.windowMin}>Sliding Window Min</Label>
                       <Input
                         id="dsm-window-min"
                         type="number"
@@ -1060,7 +1072,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="dsm-window-max">Sliding Window Max</Label>
+                      <Label htmlFor="dsm-window-max" tooltip={FIELD_TOOLTIPS.analytics.windowMax}>Sliding Window Max</Label>
                       <Input
                         id="dsm-window-max"
                         type="number"
@@ -1073,7 +1085,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="dsm-min-gap">Min Gap</Label>
+                      <Label htmlFor="dsm-min-gap" tooltip={FIELD_TOOLTIPS.analytics.minGap}>Min Gap</Label>
                       <Input
                         id="dsm-min-gap"
                         type="number"
@@ -1083,7 +1095,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="dsm-max-gap">
+                      <Label htmlFor="dsm-max-gap" tooltip={FIELD_TOOLTIPS.analytics.maxGap}>
                         Max Gap (blank = unlimited)
                       </Label>
                       <Input
@@ -1099,7 +1111,7 @@ function AnalyticsContent() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <Label htmlFor="dsm-i-support">
+                      <Label htmlFor="dsm-i-support" tooltip={FIELD_TOOLTIPS.analytics.iSupport}>
                         I Support Threshold (min avg occurrences/video)
                       </Label>
                       <Input

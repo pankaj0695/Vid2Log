@@ -3,7 +3,7 @@ import { SITE_URL } from "@/lib/site";
 
 // Only the three routes that are actually public and have unique content
 // for a crawler to index — everything else (/dashboard, /train, /process,
-// /analytics, /admin, /models/[id]) sits behind auth, redirects an
+// /analytics, /admin, /detectors/[id]) sits behind auth, redirects an
 // unauthenticated visitor (and a crawler) straight to /login, and is
 // explicitly noindex'd in its own segment layout.tsx. Listing those here
 // would just be asking Google to spend crawl budget on a login redirect.

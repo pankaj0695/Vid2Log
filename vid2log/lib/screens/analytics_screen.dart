@@ -19,6 +19,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/analytics.dart';
 import '../models/job.dart';
 import '../services/api_client.dart';
@@ -482,13 +484,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(eyebrow: 'Analytics', title: 'Analytics'),
+          PageHeader(
+            eyebrow: 'Analytics',
+            helpSection: kHelpAnchors.analytics,
+            subtitle: kPageSubtitles['analytics'],
+            title: 'Analytics',
+          ),
+          // Keeping "SPM"/"DSM" in the tab LABELS (proper analytics terms) —
+          // only their tooltips describe what each tab shows in plain
+          // language, matching frontend/app/analytics/page.tsx.
           VidTabs<_Tab>(
-            tabs: const [
-              (_Tab.overview, 'Overview'),
-              (_Tab.spm, 'Sequential patterns (SPM)'),
-              (_Tab.dsm, 'Differential patterns (DSM)'),
-              (_Tab.timeline, 'Video timeline'),
+            tabs: [
+              (_Tab.overview, 'Overview', kAnalyticsTabTooltips['overview']),
+              (_Tab.spm, 'Sequential patterns (SPM)', kAnalyticsTabTooltips['spm']),
+              (_Tab.dsm, 'Differential patterns (DSM)', kAnalyticsTabTooltips['dsm']),
+              (_Tab.timeline, 'Video timeline', kAnalyticsTabTooltips['timeline']),
             ],
             active: _tab,
             onChange: (t) => setState(() => _tab = t),
@@ -598,16 +608,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   style: TextStyle(color: VidColors.neutral500, fontSize: 13),
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: _exportOverview,
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Download CSV'),
+              Tooltip(
+                message: kButtonTooltips['exportCsv']!,
+                child: OutlinedButton.icon(
+                  onPressed: _exportOverview,
+                  icon: const Icon(Icons.download, size: 18),
+                  label: const Text('Download CSV'),
+                ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _exportOverviewPdf,
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: const Text('Download PDF'),
+              Tooltip(
+                message: kButtonTooltips['downloadPdf']!,
+                child: OutlinedButton.icon(
+                  onPressed: _exportOverviewPdf,
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: const Text('Download PDF'),
+                ),
               ),
             ],
           ),
@@ -848,10 +864,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ),
                     if (_spmResults != null && _spmResults!.isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: _exportSpm,
-                        icon: const Icon(Icons.download, size: 18),
-                        label: const Text('Export CSV'),
+                      Tooltip(
+                        message: kButtonTooltips['exportCsv']!,
+                        child: OutlinedButton.icon(
+                          onPressed: _exportSpm,
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('Export CSV'),
+                        ),
                       ),
                     ],
                   ],
@@ -992,6 +1011,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   Expanded(
                     child: _LabeledField(
                       label: 'p-value threshold',
+                      tooltip: kFieldTooltips['pValue'],
                       child: TextField(
                         controller: _pValueController,
                         keyboardType: TextInputType.number,
@@ -1003,6 +1023,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SizedBox(height: 12),
               _LabeledField(
                 label: 'Statistical test',
+                tooltip: kFieldTooltips['testType'],
                 child: DropdownButtonFormField<String>(
                   initialValue: _testTypes.contains(_testType) ? _testType : _testTypes.first,
                   isExpanded: true,
@@ -1043,10 +1064,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   if (_dsmResults != null && _dsmResults!.isNotEmpty) ...[
                     const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: _exportDsm,
-                      icon: const Icon(Icons.download, size: 18),
-                      label: const Text('Export CSV'),
+                    Tooltip(
+                      message: kButtonTooltips['exportCsv']!,
+                      child: OutlinedButton.icon(
+                        onPressed: _exportDsm,
+                        icon: const Icon(Icons.download, size: 18),
+                        label: const Text('Export CSV'),
+                      ),
                     ),
                   ],
                 ],
@@ -1182,9 +1206,9 @@ class _OptionControllers {
       );
 
   Widget supportField() =>
-      _LabeledField(label: 'S-support threshold', child: _numberField(minSupport));
+      _LabeledField(label: 'S-support threshold', tooltip: kFieldTooltips['sSupport'], child: _numberField(minSupport));
 
-  Widget topKField() => _LabeledField(label: 'Top K', child: _numberField(topK));
+  Widget topKField() => _LabeledField(label: 'Top K', tooltip: kFieldTooltips['topK'], child: _numberField(topK));
 
   Widget advancedFields() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1193,25 +1217,26 @@ class _OptionControllers {
             children: [
               Expanded(
                   child: _LabeledField(
-                      label: 'Min pattern length', child: _numberField(windowMin))),
+                      label: 'Min pattern length', tooltip: kFieldTooltips['windowMin'], child: _numberField(windowMin))),
               const SizedBox(width: 12),
               Expanded(
                   child: _LabeledField(
-                      label: 'Max pattern length', child: _numberField(windowMax))),
+                      label: 'Max pattern length', tooltip: kFieldTooltips['windowMax'], child: _numberField(windowMax))),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _LabeledField(label: 'Min gap', child: _numberField(minGap))),
+              Expanded(child: _LabeledField(label: 'Min gap', tooltip: kFieldTooltips['minGap'], child: _numberField(minGap))),
               const SizedBox(width: 12),
               Expanded(
                   child: _LabeledField(
-                      label: 'Max gap (blank = any)', child: _numberField(maxGap))),
+                      label: 'Max gap (blank = any)', tooltip: kFieldTooltips['maxGap'], child: _numberField(maxGap))),
               const SizedBox(width: 12),
               Expanded(
                   child: _LabeledField(
                       label: 'I-support threshold',
+                      tooltip: kFieldTooltips['iSupport'],
                       child: _numberField(minInstanceSupport))),
             ],
           ),
@@ -1239,20 +1264,21 @@ class _OptionControllers {
 }
 
 class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.child});
+  const _LabeledField({required this.label, required this.child, this.tooltip});
 
   final String label;
   final Widget child;
+
+  /// Plain-language explanation shown on the label's info icon; see
+  /// constants/copy.dart's kFieldTooltips.
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
+        FieldLabel(label, tooltip: tooltip),
         child,
       ],
     );

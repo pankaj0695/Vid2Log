@@ -84,8 +84,8 @@ const features = [
     icon: ICONS.git,
   },
   {
-    title: "A real model registry",
-    description: "Train, compare, and activate multiple models instead of managing one file by hand.",
+    title: "A real detector library",
+    description: "Train, compare, and activate multiple detectors instead of managing one file by hand.",
     icon: ICONS.stack,
   },
 ];
@@ -99,7 +99,7 @@ const steps = [
   {
     number: "02",
     title: "Process",
-    description: "Upload a recording and pick a model - actions are detected automatically, scene by scene.",
+    description: "Upload a recording and pick a detector - actions are detected automatically, scene by scene.",
   },
   {
     number: "03",

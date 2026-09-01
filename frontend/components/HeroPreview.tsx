@@ -95,7 +95,7 @@ function TrainScene({ visibleClasses, progress }: { visibleClasses: number; prog
           />
         </div>
         {progress === 100 && (
-          <p className="animate-row-in mt-3 text-sm text-success">✓ Model trained — 96.4% test accuracy</p>
+          <p className="animate-row-in mt-3 text-sm text-success">✓ Detector trained — 96.4% test accuracy</p>
         )}
       </div>
     </div>

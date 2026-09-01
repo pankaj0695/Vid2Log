@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 
 // Deliberately NOT disallowing /dashboard, /train, /process, /analytics,
-// /admin, /models here even though they're private. Google's own guidance
+// /admin, /detectors here even though they're private. Google's own guidance
 // is explicit about why: a robots.txt Disallow stops crawling entirely, so
 // Googlebot never actually fetches the page and never sees a `noindex` meta
 // tag placed on it — the two mechanisms conflict when combined. Those

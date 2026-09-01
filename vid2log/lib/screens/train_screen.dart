@@ -20,6 +20,8 @@ import 'dart:io' show Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
@@ -164,14 +166,14 @@ class _TrainScreenState extends State<TrainScreen> {
     if (!mounted) return;
     if (datasets.isEmpty) {
       setState(() => _formError =
-          'No saved datasets yet, use Create actions to discover actions from a demo video first.');
+          'No saved action sets yet, use Create actions to discover actions from a demo video first.');
       return;
     }
 
     final chosen = await showDialog<ActionDataset>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Import a saved dataset'),
+        title: const Text('Import a saved action set'),
         children: datasets
             .map((d) => SimpleDialogOption(
                   onPressed: () => Navigator.of(context).pop(d),
@@ -195,7 +197,7 @@ class _TrainScreenState extends State<TrainScreen> {
           ..addAll(detail.actions.entries.map(
             (e) => ScannedAction(name: e.key, imageCount: e.value.length, imagePaths: e.value),
           ));
-        _sourceFolder = 'saved dataset "${detail.name}"';
+        _sourceFolder = 'saved action set "${detail.name}"';
         if (_modelNameController.text.trim().isEmpty) {
           _modelNameController.text = detail.name;
         }
@@ -275,7 +277,7 @@ class _TrainScreenState extends State<TrainScreen> {
 
     final name = _modelNameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _formError = 'Give the model a name.');
+      setState(() => _formError = 'Give the detector a name.');
       return;
     }
 
@@ -333,16 +335,18 @@ class _TrainScreenState extends State<TrainScreen> {
         children: [
           PageHeader(
             eyebrow: 'Train',
-            title: 'Train a model',
+            helpSection: kHelpAnchors.train,
+            subtitle: kPageSubtitles['train'],
+            title: 'Train a detector',
             action: OutlinedButton(
               onPressed: widget.onOpenModels,
-              child: const Text('Models'),
+              child: const Text('My detectors'),
             ),
           ),
           VidTabs<_TrainTab>(
             tabs: [
-              (_TrainTab.build, 'Train'),
-              (_TrainTab.jobs, 'Training jobs${activeCount > 0 ? ' ($activeCount active)' : ''}'),
+              (_TrainTab.build, 'Train a detector', kTrainTabTooltips['train']),
+              (_TrainTab.jobs, 'Training sessions${activeCount > 0 ? ' ($activeCount active)' : ''}', kTrainTabTooltips['jobs']),
             ],
             active: _tab,
             onChange: (t) => setState(() => _tab = t),
@@ -384,7 +388,7 @@ class _TrainScreenState extends State<TrainScreen> {
                     OutlinedButton.icon(
                       onPressed: _scanning ? null : _importSavedDataset,
                       icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                      label: const Text('Import dataset'),
+                      label: const Text('Import action set'),
                     ),
                     OutlinedButton.icon(
                       onPressed: _addEmptyAction,
@@ -396,7 +400,7 @@ class _TrainScreenState extends State<TrainScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _sourceFolder == null
-                      ? 'Import a folder with one subfolder per action, or a dataset you built in Create actions. Files are read where they are, nothing is copied or uploaded.'
+                      ? 'Import a folder with one subfolder per action, or an action set you built in Create actions. Files are read where they are, nothing is copied or uploaded.'
                       : 'Imported from $_sourceFolder',
                   style: TextStyle(color: VidColors.neutral500, fontSize: 12, height: 1.5),
                 ),
@@ -417,9 +421,8 @@ class _TrainScreenState extends State<TrainScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const VidCardHeader(title: 'Model'),
-                Text('Name', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
+                const VidCardHeader(title: 'Detector'),
+                FieldLabel('Name', tooltip: kFieldTooltips['detectorName']),
                 TextField(
                   controller: _modelNameController,
                   enabled: !_submitting,
@@ -450,11 +453,11 @@ class _TrainScreenState extends State<TrainScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _numField('Epochs', _epochsController)),
+                      Expanded(child: _numField('Epochs', _epochsController, tooltip: kFieldTooltips['epochs'])),
                       const SizedBox(width: 12),
-                      Expanded(child: _numField('Batch size', _batchSizeController)),
+                      Expanded(child: _numField('Batch size', _batchSizeController, tooltip: kFieldTooltips['batchSize'])),
                       const SizedBox(width: 12),
-                      Expanded(child: _numField('Learning rate', _learningRateController)),
+                      Expanded(child: _numField('Learning rate', _learningRateController, tooltip: kFieldTooltips['learningRate'])),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -489,12 +492,11 @@ class _TrainScreenState extends State<TrainScreen> {
     );
   }
 
-  Widget _numField(String label, TextEditingController controller) {
+  Widget _numField(String label, TextEditingController controller, {String? tooltip}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
+        FieldLabel(label, tooltip: tooltip),
         TextField(
           controller: controller,
           enabled: !_submitting,
@@ -640,7 +642,7 @@ class _TrainScreenState extends State<TrainScreen> {
               const SizedBox(height: 10),
               OutlinedButton(
                 onPressed: widget.onOpenModels,
-                child: const Text('View in Models'),
+                child: const Text('View in My detectors'),
               ),
             ],
             if (job.status == JobStatus.failed) ...[
@@ -649,7 +651,10 @@ class _TrainScreenState extends State<TrainScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  OutlinedButton(onPressed: () => _retry(job), child: const Text('Retry')),
+                  Tooltip(
+                    message: kButtonTooltips['retry']!,
+                    child: OutlinedButton(onPressed: () => _retry(job), child: const Text('Retry')),
+                  ),
                   const SizedBox(width: 8),
                   TextButton(onPressed: () => _deleteJob(job), child: const Text('Delete')),
                 ],

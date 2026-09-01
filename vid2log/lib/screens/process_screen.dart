@@ -12,6 +12,8 @@ library;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
+import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../models/training.dart';
 import '../services/api_client.dart';
@@ -160,6 +162,8 @@ class _ProcessScreenState extends State<ProcessScreen> {
         children: [
           PageHeader(
             eyebrow: 'Process',
+            helpSection: kHelpAnchors.process,
+            subtitle: kPageSubtitles['process'],
             title: 'Process a video',
             action: OutlinedButton(
               onPressed: () => widget.onNavigate(AppSection.videoLogs),
@@ -168,8 +172,8 @@ class _ProcessScreenState extends State<ProcessScreen> {
           ),
           VidTabs<_ProcessTab>(
             tabs: [
-              (_ProcessTab.newJob, 'New job'),
-              (_ProcessTab.history, 'Job history${activeCount > 0 ? ' ($activeCount active)' : ''}'),
+              (_ProcessTab.newJob, 'New recording', kProcessTabTooltips['new']),
+              (_ProcessTab.history, 'Recording history${activeCount > 0 ? ' ($activeCount active)' : ''}', kProcessTabTooltips['history']),
             ],
             active: _tab,
             onChange: (t) => setState(() => _tab = t),
@@ -187,9 +191,8 @@ class _ProcessScreenState extends State<ProcessScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const VidCardHeader(title: 'New job'),
-            Text('Video file', style: TextStyle(color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 6),
+            const VidCardHeader(title: 'New recording'),
+            FieldLabel('Video file', tooltip: kFieldTooltips['processVideo']),
             InkWell(
               onTap: _submitting ? null : _pickVideo,
               borderRadius: BorderRadius.circular(10),
@@ -231,10 +234,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Model',
-                          style: TextStyle(
-                              color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 6),
+                      FieldLabel('Detector', tooltip: kFieldTooltips['detector']),
                       DropdownButtonFormField<String?>(
                         initialValue: _selectedModelId,
                         isExpanded: true,
@@ -243,7 +243,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                         items: [
                           const DropdownMenuItem<String?>(
                             value: null,
-                            child: Text('Use active model'),
+                            child: Text('Use active detector'),
                           ),
                           ...?_models?.map(
                             (m) => DropdownMenuItem<String?>(
@@ -263,10 +263,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Sampling FPS',
-                        style: TextStyle(
-                            color: VidColors.neutral500, fontSize: 13, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 6),
+                    FieldLabel('Sampling FPS', tooltip: kFieldTooltips['fps']),
                     SizedBox(
                       width: 110,
                       child: TextField(
@@ -312,7 +309,7 @@ class _ProcessScreenState extends State<ProcessScreen> {
       );
     }
     if (_jobs!.isEmpty) {
-      return const EmptyStateWidget(title: 'No jobs yet');
+      return const EmptyStateWidget(title: 'No recordings yet');
     }
     return Column(
       children: _jobs!

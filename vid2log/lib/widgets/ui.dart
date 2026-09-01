@@ -7,7 +7,9 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../constants/copy.dart';
 import '../models/job.dart';
+import '../shell/help_navigator.dart';
 import '../theme/colors.dart';
 
 // Re-exported so every screen that imports this file for VidCard/StatusBadge/
@@ -77,12 +79,23 @@ class PageHeader extends StatelessWidget {
     super.key,
     required this.eyebrow,
     required this.title,
+    this.subtitle,
     this.action,
+    this.helpSection,
   });
 
   final String eyebrow;
   final String title;
+  /// One-line description shown directly BELOW the title, in plain language
+  /// for non-technical users (see lib/constants/copy.dart's kPageSubtitles).
+  final String? subtitle;
   final Widget? action;
+
+  /// Section id from constants/help_content.dart. Renders a small `?` beside
+  /// the title that opens the Help screen scrolled to that section. Sits
+  /// inline next to the heading rather than in [action], so adding it never
+  /// disturbs a screen's existing buttons.
+  final String? helpSection;
 
   @override
   Widget build(BuildContext context) {
@@ -105,20 +118,127 @@ class PageHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: VidColors.text,
-                    letterSpacing: -0.2,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: VidColors.text,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    if (helpSection case final anchor?) ...[
+                      const SizedBox(width: 6),
+                      _HelpButton(section: anchor, pageTitle: title),
+                    ],
+                  ],
                 ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: VidColors.neutral500,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           if (action != null) action!,
         ],
+      ),
+    );
+  }
+}
+
+/// A form field label, optionally carrying a short explanation.
+///
+/// The desktop counterpart of the web app's Label `tooltip` prop (see
+/// frontend/components/ui/Input.tsx). Passing [tooltip] appends a small info
+/// icon that explains the field on hover, so an input can keep its correct
+/// technical name ('Max pattern length', 'S-support threshold') without
+/// stranding a reader who has not met the term before. Wording lives in
+/// constants/copy.dart's kFieldTooltips.
+class FieldLabel extends StatelessWidget {
+  const FieldLabel(this.label, {super.key, this.tooltip});
+
+  final String label;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: VidColors.neutral500,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (tooltip case final message?) ...[
+            const SizedBox(width: 5),
+            Tooltip(
+              message: message,
+              waitDuration: const Duration(milliseconds: 300),
+              child: Icon(
+                Icons.info_outline,
+                size: 14,
+                color: VidColors.neutral400,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The `?` beside a page title. Renders nothing at all when no HelpNavigator
+/// is above it in the tree (for example inside the pushed JobDetail route),
+/// rather than showing a button that would do nothing when pressed.
+class _HelpButton extends StatelessWidget {
+  const _HelpButton({required this.section, required this.pageTitle});
+
+  final String section;
+  final String pageTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final nav = HelpNavigator.maybeOf(context);
+    if (nav == null) return const SizedBox.shrink();
+    return Tooltip(
+      message: kButtonTooltips['help'] ?? 'How this page works',
+      waitDuration: const Duration(milliseconds: 400),
+      child: Semantics(
+        button: true,
+        label: 'Help: $pageTitle',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => nav.openHelp(section),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(
+              Icons.help_outline_rounded,
+              size: 19,
+              color: VidColors.neutral400,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -135,7 +255,9 @@ class VidTabs<T> extends StatelessWidget {
     required this.onChange,
   });
 
-  final List<(T id, String label)> tabs;
+  /// Third element is an optional 3-5 word tooltip shown on hover (see
+  /// lib/constants/copy.dart), matching frontend/components/ui/Tabs.tsx.
+  final List<(T id, String label, String? tooltip)> tabs;
   final T active;
   final ValueChanged<T> onChange;
 
@@ -147,7 +269,7 @@ class VidTabs<T> extends StatelessWidget {
         spacing: 4,
         children: tabs.map((t) {
           final isActive = t.$1 == active;
-          return Material(
+          final button = Material(
             color: isActive ? VidColors.primaryTint : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             child: InkWell(
@@ -167,6 +289,8 @@ class VidTabs<T> extends StatelessWidget {
               ),
             ),
           );
+          final tooltip = t.$3;
+          return tooltip == null ? button : Tooltip(message: tooltip, child: button);
         }).toList(),
       ),
     );

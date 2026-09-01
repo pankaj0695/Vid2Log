@@ -109,6 +109,38 @@ export function IconChevronDown({ className }: IconProps) {
   );
 }
 
+// Lowercase "i" in a circle — the convention for an inline field
+// explanation, distinct from the question mark used for page-level help.
+// Sized smaller than the rest of the set since it sits beside label text.
+export function IconInfo({ className }: IconProps) {
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M12 11v5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <circle cx="12" cy="7.6" r="1.05" fill="currentColor" />
+    </svg>
+  );
+}
+
+// Question mark in a circle — the documentation/help convention. Used both
+// for the sidebar's Help item and for the small `?` button in every
+// PageHeader that deep-links into the matching /help section.
+export function IconHelp({ className }: IconProps) {
+  return (
+    <svg {...common} className={className}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M9.6 9.2a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="16.6" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 // Classic "toggle sidebar" glyph (a panel with a divider, same icon used
 // regardless of open/closed state — VSCode/Notion/Linear all use one
 // consistent icon here rather than swapping arrows, since the aria-label
