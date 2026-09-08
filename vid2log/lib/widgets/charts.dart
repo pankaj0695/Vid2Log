@@ -10,17 +10,34 @@ import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
 
-/// The qualitative palette from charts.tsx's CATEGORY_PALETTE, in the same
-/// order so a given action gets the same colour in both apps.
+/// The qualitative palette from lib/actionColors.ts's ACTION_PALETTE, in the
+/// same order.
+///
+/// The previous palette paired teal with emerald, sky with blue, and rose with
+/// pink — near-identical colours that made two actions hard to tell apart,
+/// which is the one thing a categorical scale must not do. These ten hues are
+/// spread as widely as mid-tone colours allow, and are mid-tone on purpose so
+/// they hold up on both the light and dark themes.
+///
+/// The closest remaining pair (amber/orange) sits far apart in the order, so
+/// small logs draw the most distinct subset.
+///
+/// Note the two apps assign colours differently — Flutter walks this list in
+/// sorted label order, the web hashes the label name — so an action will not
+/// necessarily land on the same entry in both. Within either app it is
+/// consistent across every chart and timeline, which is what matters for
+/// comparing logs.
 const List<Color> kCategoryPalette = [
-  Color(0xFF2DD4BF), // teal
-  Color(0xFF38BDF8), // sky
-  Color(0xFFFBBF24), // amber
-  Color(0xFFF87171), // rose
-  Color(0xFFA78BFA), // violet
-  Color(0xFF34D399), // emerald
-  Color(0xFFF472B6), // pink
-  Color(0xFF60A5FA), // blue
+  Color(0xFF3B82F6), // blue
+  Color(0xFFEF4444), // red
+  Color(0xFF22C55E), // green
+  Color(0xFFF59E0B), // amber
+  Color(0xFFA855F7), // purple
+  Color(0xFF06B6D4), // cyan
+  Color(0xFFEC4899), // pink
+  Color(0xFF84CC16), // lime
+  Color(0xFFF97316), // orange
+  Color(0xFF64748B), // slate
 ];
 
 /// Assigns every label its own colour, keyed by POSITION in [labels] rather
@@ -29,11 +46,10 @@ const List<Color> kCategoryPalette = [
 /// Hashing was the earlier approach and it was wrong: two different actions
 /// could hash to the same palette slot and render identically, which is
 /// exactly the thing a categorical colour scale must never do. Index-based
-/// assignment guarantees the first eight are distinct, and past that this
+/// assignment guarantees the first ten are distinct, and past that this
 /// generates additional evenly-spaced hues instead of wrapping around the
 /// palette, so a log with 20 actions still gets 20 visually distinct
-/// colours (the web version wraps at 8; this is a deliberate improvement,
-/// not a divergence in behaviour).
+/// colours.
 ///
 /// Pass a stable, deterministic [labels] order (sorted, or first-appearance
 /// order) so the same action keeps its colour between rebuilds.

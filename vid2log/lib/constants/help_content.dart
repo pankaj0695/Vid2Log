@@ -281,19 +281,42 @@ const List<HelpSection> kHelpSections = [
           'Download CSV: export a log for use in Excel, SPSS, R or a comparable tool.',
           'Import CSV log: load a log produced elsewhere, or one previously exported and corrected.',
           'CSV template: download this first to confirm the columns an import requires.',
+          'Combine: tick two or more logs to export them as a single file, labelled by a user_id column.',
           'Rename: give a log a label you will recognise later in Analytics.',
         ],
       ),
     ],
-    termsHeading: 'Columns in the scene table',
+    termsHeading: 'What an imported CSV needs',
     terms: [
+      HelpTerm('action',
+          'Required on every row: the name of the action that row represents.'),
+      HelpTerm(
+        'Any two of start_time, end_time, duration',
+        'The third is worked out for you. Times may be written as HH:MM:SS, MM:SS, '
+            'or a plain number of seconds.',
+      ),
+      HelpTerm(
+        'Column order and case',
+        'Neither matters. "Start Time", "START_TIME" and "start-time" are all '
+            'understood, in any order.',
+      ),
+      HelpTerm('Extra columns',
+          'Kept out of the way rather than rejected. The import reports which ones it ignored.'),
+      HelpTerm(
+        'confidence',
+        'Optional. When absent every row is recorded at 100%, on the basis that a '
+            'hand-authored log states a fact rather than a prediction.',
+      ),
+      HelpTerm(
+        'user_id',
+        'Marks a combined file holding several logs. The import splits it into one '
+            'log per id, each named after that id.',
+      ),
       HelpTerm('Scene',
           'A continuous period during which a single action is detected, with a start and an end time.'),
-      HelpTerm('Confidence',
-          'The detector\'s certainty for that scene, expressed as a percentage.'),
     ],
-    note: 'Persistently low confidence for one particular action generally '
-        'indicates that the detector requires additional training examples for it.',
+    note: 'An import that cannot be read is not silently dropped: the screen lists '
+        'exactly which lines are wrong and why, so the file can be corrected and retried.',
   ),
   HelpSection(
     id: 'analytics',

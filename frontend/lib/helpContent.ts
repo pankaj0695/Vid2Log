@@ -276,22 +276,43 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Download CSV: export a log for use in Excel, SPSS, R or a comparable tool.",
           "Import CSV log: load a log produced elsewhere, or one previously exported and corrected.",
           "CSV template: download this first to confirm the columns an import requires.",
+          "Combine: tick two or more logs to export them as a single file, labelled by a user_id column.",
           "Rename: give a log a label you will recognise later in Analytics.",
         ],
       },
     ],
-    termsHeading: "Columns in the scene table",
+    termsHeading: "What an imported CSV needs",
     terms: [
+      {
+        term: "action",
+        def: "Required on every row: the name of the action that row represents.",
+      },
+      {
+        term: "Any two of start_time, end_time, duration",
+        def: "The third is worked out for you. Times may be written as HH:MM:SS, MM:SS, or a plain number of seconds.",
+      },
+      {
+        term: "Column order and case",
+        def: "Neither matters. \"Start Time\", \"START_TIME\" and \"start-time\" are all understood, in any order.",
+      },
+      {
+        term: "Extra columns",
+        def: "Kept out of the way rather than rejected. The import reports which ones it ignored.",
+      },
+      {
+        term: "confidence",
+        def: "Optional. When absent every row is recorded at 100%, on the basis that a hand-authored log states a fact rather than a prediction.",
+      },
+      {
+        term: "user_id",
+        def: "Marks a combined file holding several logs. The import splits it into one log per id, each named after that id.",
+      },
       {
         term: "Scene",
         def: "A continuous period during which a single action is detected, with a start and an end time.",
       },
-      {
-        term: "Confidence",
-        def: "The detector's certainty for that scene, expressed as a percentage.",
-      },
     ],
-    note: "Persistently low confidence for one particular action generally indicates that the detector requires additional training examples for it.",
+    note: "An import that cannot be read is not silently dropped: the page lists exactly which lines are wrong and why, so the file can be corrected and retried.",
   },
   {
     id: "analytics",

@@ -14,7 +14,15 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Skeleton, SkeletonTable } from "@/components/ui/Skeleton";
 import { logDisplayName } from "@/lib/format";
-import { downloadCsv, findMissingCsvColumns } from "@/lib/csv";
+import { downloadCsv } from "@/lib/csv";
+import {
+  buildCanonicalCsv,
+  buildCombinedCsv,
+  parseLogCsv,
+  TEMPLATE_COLUMNS,
+  TEMPLATE_ROWS,
+  type NormalisedScene,
+} from "@/lib/logCsv";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { PAGE_SUBTITLES, BUTTON_TOOLTIPS } from "@/lib/copy";
 import { HELP_ANCHORS } from "@/lib/helpContent";
@@ -22,11 +30,6 @@ import { HELP_ANCHORS } from "@/lib/helpContent";
 function stagger(index: number, stepMs = 35): CSSProperties {
   return { "--stagger": `${index * stepMs}ms` } as CSSProperties;
 }
-
-// Mirrors backend/app/routers/logs.py::REQUIRED_IMPORT_COLUMNS — kept in
-// sync so a bad CSV gets rejected immediately client-side instead of only
-// after a round trip to the server.
-const REQUIRED_CSV_COLUMNS = ["start_time", "end_time", "duration", "action", "confidence"];
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -71,7 +74,16 @@ function VideoLogsContent() {
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const [csvImporting, setCsvImporting] = useState(false);
-  const [csvImportError, setCsvImportError] = useState<string | null>(null);
+  // Errors are a list rather than one string: a spreadsheet usually has the
+  // same mistake on many rows, and showing them together lets the whole file
+  // be fixed in one pass instead of one failed upload at a time.
+  const [csvImportErrors, setCsvImportErrors] = useState<string[]>([]);
+  // Whether those errors are about the file's SHAPE (so the format rules are
+  // worth restating) or about the upload failing (where they are not, and
+  // repeating them would send someone off to edit a file that was fine).
+  const [csvErrorsAreFormat, setCsvErrorsAreFormat] = useState(true);
+  const [csvImportNotices, setCsvImportNotices] = useState<string[]>([]);
+  const [csvImportSummary, setCsvImportSummary] = useState<string | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   async function loadJobs() {
@@ -89,25 +101,61 @@ function VideoLogsContent() {
     loadJobs();
   }, []);
 
+  /** Reads the chosen CSV in the browser, repairs what can be repaired (see
+   * lib/logCsv.ts), and uploads one canonical CSV per log it found. A file
+   * carrying a `user_id` column is a combined export and becomes several
+   * logs, one per id, each named after that id. */
   async function handleImportCsv(file: File) {
-    setCsvImportError(null);
+    setCsvImportErrors([]);
+    setCsvImportNotices([]);
+    setCsvImportSummary(null);
+    setCsvErrorsAreFormat(true);
 
-    const headerText = await file.text();
-    const missingColumns = findMissingCsvColumns(headerText, REQUIRED_CSV_COLUMNS);
-    if (missingColumns.length > 0) {
-      setCsvImportError(
-        `This CSV is missing required column${missingColumns.length > 1 ? "s" : ""}: ${missingColumns.join(", ")}. Download the template for the exact format.`
-      );
+    const text = await file.text();
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "Imported log";
+    const parsed = parseLogCsv(text, baseName);
+
+    if (!parsed.ok) {
+      setCsvImportErrors(parsed.errors);
+      setCsvImportNotices(parsed.notices);
       if (csvInputRef.current) csvInputRef.current.value = "";
       return;
     }
 
     setCsvImporting(true);
+    const imported: string[] = [];
+    const failed: string[] = [];
     try {
-      await api.logs.importCsv(file);
+      for (const log of parsed.logs) {
+        const csv = buildCanonicalCsv(log.scenes);
+        // The server takes the uploaded file's name as the log's name, so
+        // naming the blob after the user_id is what makes a combined file
+        // split back into correctly-named logs.
+        const blob = new File([csv], `${log.name}.csv`, { type: "text/csv" });
+        try {
+          await api.logs.importCsv(blob);
+          imported.push(log.name);
+        } catch (err) {
+          failed.push(`${log.name}: ${err instanceof Error ? err.message : "upload failed"}`);
+        }
+      }
       await loadJobs();
+
+      if (failed.length > 0) {
+        setCsvErrorsAreFormat(false);
+        setCsvImportErrors(failed);
+      }
+      if (imported.length > 0) {
+        setCsvImportSummary(
+          parsed.logs.length > 1
+            ? `Imported ${imported.length} log${imported.length > 1 ? "s" : ""}: ${imported.join(", ")}.`
+            : `Imported ${imported[0]}.`,
+        );
+        setCsvImportNotices(parsed.notices);
+      }
     } catch (err) {
-      setCsvImportError(err instanceof Error ? err.message : "Failed to import this CSV.");
+      setCsvErrorsAreFormat(false);
+      setCsvImportErrors([err instanceof Error ? err.message : "Failed to import this CSV."]);
     } finally {
       setCsvImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = "";
@@ -115,14 +163,7 @@ function VideoLogsContent() {
   }
 
   function downloadCsvTemplate() {
-    downloadCsv(
-      "vid2log_log_template.csv",
-      ["start_time", "end_time", "duration", "action", "confidence", "source"],
-      [
-        ["00:00:00", "00:00:05", "00:00:05", "Login Screen", "0.95", "manual"],
-        ["00:00:05", "00:00:12", "00:00:07", "Dashboard", "0.91", "manual"],
-      ]
-    );
+    downloadCsv("vid2log_log_template.csv", [...TEMPLATE_COLUMNS], TEMPLATE_ROWS);
   }
 
   async function toggleLogs(jobId: string) {
@@ -158,10 +199,32 @@ function VideoLogsContent() {
     });
   }
 
+  /** Builds the combined CSV in the browser rather than calling the server's
+   * /logs/combine, which labels each block with `video_id` holding an opaque
+   * job UUID. Here the column is `user_id` carrying the log's display name,
+   * which is what lets the file be re-imported and split back into logs with
+   * the names they started with. */
   async function handleCombine() {
     setCombineBusy(true);
     try {
-      const url = await api.logs.combine(Array.from(combineSelection));
+      const selected = doneJobs.filter((j) => combineSelection.has(j.job_id));
+      const withScenes = await Promise.all(
+        selected.map(async (job) => ({
+          name: displayName(job),
+          scenes: (await api.logs.get(job.job_id)).scenes.map(
+            (s): NormalisedScene => ({
+              start_time: s.start_time,
+              end_time: s.end_time,
+              duration: s.duration,
+              action: s.action,
+              confidence: s.confidence,
+              source: s.source || "csv_import",
+            }),
+          ),
+        })),
+      );
+      const csv = buildCombinedCsv(withScenes);
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
       await triggerDownload(url, "combined_logs.csv");
     } catch (err) {
       setJobsError(err instanceof Error ? err.message : "Failed to combine logs.");
@@ -265,9 +328,51 @@ function VideoLogsContent() {
           </div>
         </div>
 
-        {csvImportError && (
-          <Alert tone="danger" className="mb-4">
-            {csvImportError}
+        {csvImportErrors.length > 0 && (
+          <Alert
+            tone="danger"
+            className="mb-4"
+            dismissLabel="Dismiss import errors"
+            onDismiss={() => setCsvImportErrors([])}
+          >
+            <p className="font-medium">
+              {csvErrorsAreFormat
+                ? "This CSV could not be imported. Fix the following and try again:"
+                : "The file was read correctly, but these logs could not be saved:"}
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {csvImportErrors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+            {csvErrorsAreFormat && (
+              <p className="mt-2 text-sm">
+                The file needs an <span className="font-mono">action</span> column and any two of{" "}
+                <span className="font-mono">start_time</span>, <span className="font-mono">end_time</span> and{" "}
+                <span className="font-mono">duration</span>. Column order and capitalisation do not matter.
+              </p>
+            )}
+          </Alert>
+        )}
+
+        {csvImportSummary && (
+          <Alert
+            tone="success"
+            className="mb-4"
+            dismissLabel="Dismiss import summary"
+            onDismiss={() => {
+              setCsvImportSummary(null);
+              setCsvImportNotices([]);
+            }}
+          >
+            <p className="font-medium">{csvImportSummary}</p>
+            {csvImportNotices.length > 0 && (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {csvImportNotices.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
           </Alert>
         )}
 

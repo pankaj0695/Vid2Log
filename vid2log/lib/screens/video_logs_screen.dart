@@ -3,9 +3,10 @@
 /// log that already exists as a CSV (produced by hand, exported from
 /// elsewhere, or exported from here and edited).
 ///
-/// The web version's "combine N logs into one CSV" is the one feature not
-/// here yet, it needs a combine endpoint on the sidecar, which is a pure
-/// addition rather than a blocker.
+/// Combining several logs into one CSV is built here rather than on the
+/// sidecar: the file is assembled from scene rows this screen already has,
+/// keyed by a `user_id` column carrying each log's name, which is what lets
+/// the combined file be re-imported and split back into the same logs.
 library;
 
 import 'dart:io';
@@ -17,6 +18,7 @@ import '../constants/copy.dart';
 import '../constants/help_content.dart';
 import '../models/job.dart';
 import '../services/api_client.dart';
+import '../utils/log_csv.dart';
 import '../widgets/ui.dart';
 
 class VideoLogsScreen extends StatefulWidget {
@@ -36,7 +38,22 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
   final _renameController = TextEditingController();
   bool _busy = false;
   bool _importing = false;
-  String? _importError;
+
+  // Errors are a list rather than one string: a spreadsheet usually repeats
+  // the same mistake on many rows, and showing them together lets the whole
+  // file be fixed in one pass instead of one failed import at a time.
+  List<String> _importErrors = const [];
+  List<String> _importNotices = const [];
+  String? _importSummary;
+
+  /// Whether [_importErrors] are about the file's SHAPE (so the format rules
+  /// are worth restating) or about saving failing (where they are not, and
+  /// repeating them would send someone off to edit a file that was fine).
+  bool _importErrorsAreFormat = true;
+
+  /// Logs ticked for combining into a single CSV.
+  final Set<String> _combineSelection = {};
+  bool _combining = false;
 
   @override
   void initState() {
@@ -84,6 +101,10 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
     }
   }
 
+  /// Reads the chosen CSV here, repairs what can be repaired (see
+  /// utils/log_csv.dart), and hands the sidecar one canonical CSV per log it
+  /// found. A file carrying a `user_id` column is a combined export and
+  /// becomes several logs, one per id, each named after that id.
   Future<void> _importCsv() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -94,24 +115,116 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
     if (path == null) return;
 
     setState(() {
-      _importing = true;
-      _importError = null;
+      _importErrors = const [];
+      _importNotices = const [];
+      _importSummary = null;
+      _importErrorsAreFormat = true;
     });
+
+    final String text;
     try {
-      await widget.apiClient.importCsvLog(path);
-      await _load();
+      text = await File(path).readAsString();
     } catch (e) {
+      setState(() => _importErrors = ['Could not read that file: $e']);
+      return;
+    }
+
+    final baseName = path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'\.[^.]+$'), '');
+    final parsed = parseLogCsv(text, baseName.isEmpty ? 'Imported log' : baseName);
+    if (!parsed.ok) {
+      setState(() {
+        _importErrors = parsed.errors;
+        _importNotices = parsed.notices;
+      });
+      return;
+    }
+
+    setState(() => _importing = true);
+    final imported = <String>[];
+    final failed = <String>[];
+    // Canonical copies live in a temp folder; the sidecar records the path
+    // it imported from, and a scratch file is more honest than pretending
+    // the original spreadsheet was in this exact shape.
+    final tempDir = await Directory.systemTemp.createTemp('vid2log_import_');
+    try {
+      for (final log in parsed.logs) {
+        final safeName = log.name.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
+        final file = File('${tempDir.path}${Platform.pathSeparator}$safeName.csv');
+        await file.writeAsString(buildCanonicalCsv(log.scenes));
+        try {
+          final job = await widget.apiClient.importCsvLog(file.path);
+          // The sidecar names the log after the file it read; set the display
+          // name too so a combined import shows "P01" rather than "P01.csv".
+          await widget.apiClient.renameJob(job.jobId, log.name);
+          imported.add(log.name);
+        } catch (e) {
+          failed.add('${log.name}: $e');
+        }
+      }
+      await _load();
       if (!mounted) return;
-      setState(() => _importError = '$e');
+      setState(() {
+        _importErrorsAreFormat = false;
+        _importErrors = failed;
+        if (imported.isNotEmpty) {
+          _importSummary = parsed.logs.length > 1
+              ? 'Imported ${imported.length} log${imported.length > 1 ? 's' : ''}: ${imported.join(', ')}.'
+              : 'Imported ${imported.first}.';
+          _importNotices = parsed.notices;
+        }
+      });
     } finally {
       if (mounted) setState(() => _importing = false);
+      // Best effort: the OS clears its temp folder anyway.
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
     }
   }
 
-  /// Writes a two-row example CSV so it's obvious what shape an importable
-  /// log has, same columns the sidecar requires (see main.py's
-  /// REQUIRED_IMPORT_COLUMNS) and the same ones Download CSV exports, so a
-  /// template can be filled in and imported directly.
+  /// Builds one CSV holding every selected log, keyed by a `user_id` column
+  /// carrying the log's name so the file round-trips back through import.
+  Future<void> _combineSelected() async {
+    setState(() => _combining = true);
+    try {
+      final selected = (_jobs ?? []).where((j) => _combineSelection.contains(j.jobId)).toList();
+      final logs = <ParsedLog>[];
+      for (final job in selected) {
+        final full = await widget.apiClient.getJob(job.jobId);
+        logs.add(ParsedLog(
+          name: job.label.replaceFirst(RegExp(r'\.[^.]+$'), ''),
+          scenes: [
+            for (final s in full.scenes ?? const <Scene>[])
+              NormalisedScene(
+                startTime: s.startTime,
+                endTime: s.endTime,
+                duration: s.duration,
+                action: s.action,
+                confidence: s.confidence,
+                source: s.source.isEmpty ? 'csv_import' : s.source,
+              ),
+          ],
+        ));
+      }
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save combined log CSV',
+        fileName: 'combined_logs.csv',
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+      if (savePath == null) return;
+      await File(savePath).writeAsString(buildCombinedCsv(logs));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _combining = false);
+    }
+  }
+
+  /// Writes a short example CSV showing the shape an importable log needs.
+  /// Only the four columns a person must actually fill in: confidence and
+  /// source are optional on import, so asking for them invites confusion.
   Future<void> _downloadTemplate() async {
     final savePath = await FilePicker.platform.saveFile(
       dialogTitle: 'Save CSV template',
@@ -120,11 +233,8 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
       allowedExtensions: ['csv'],
     );
     if (savePath == null) return;
-    const template = 'start_time,end_time,duration,action,confidence,source\n'
-        '00:00:00,00:00:05,00:00:05,Login Screen,0.95,manual\n'
-        '00:00:05,00:00:12,00:00:07,Dashboard,0.91,manual\n';
     try {
-      await File(savePath).writeAsString(template);
+      await File(savePath).writeAsString(buildTemplateCsv());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -194,6 +304,19 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
             action: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_combineSelection.length >= 2) ...[
+                  OutlinedButton.icon(
+                    onPressed: _combining ? null : _combineSelected,
+                    icon: _combining
+                        ? const SizedBox(
+                            width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.merge_rounded, size: 18),
+                    label: Text(_combining
+                        ? 'Combining…'
+                        : 'Combine ${_combineSelection.length} logs'),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 TextButton(onPressed: _downloadTemplate, child: const Text('CSV template')),
                 const SizedBox(width: 8),
                 Tooltip(
@@ -217,7 +340,25 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
               style: TextStyle(color: VidColors.neutral500, fontSize: 13),
             ),
           ),
-          if (_importError != null) ...[DangerAlert(message: _importError!), const SizedBox(height: 16)],
+          if (_importErrors.isNotEmpty) ...[
+            _ImportProblems(
+              errors: _importErrors,
+              isFormatProblem: _importErrorsAreFormat,
+              onDismiss: () => setState(() => _importErrors = const []),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (_importSummary != null) ...[
+            _ImportSummary(
+              summary: _importSummary!,
+              notices: _importNotices,
+              onDismiss: () => setState(() {
+                _importSummary = null;
+                _importNotices = const [];
+              }),
+            ),
+            const SizedBox(height: 16),
+          ],
           if (_error != null) ...[DangerAlert(message: _error!), const SizedBox(height: 16)],
           if (_jobs == null)
             const Padding(
@@ -245,6 +386,21 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
           children: [
             Row(
               children: [
+                // Ticking two or more enables the combine action in the header.
+                Tooltip(
+                  message: 'Include this log when combining',
+                  waitDuration: const Duration(milliseconds: 400),
+                  child: Checkbox(
+                    value: _combineSelection.contains(job.jobId),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _combineSelection.add(job.jobId);
+                      } else {
+                        _combineSelection.remove(job.jobId);
+                      }
+                    }),
+                  ),
+                ),
                 Expanded(
                   child: isRenaming
                       ? Row(
@@ -339,6 +495,160 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The list of reasons an import was rejected, with the rule restated so the
+/// file can be fixed in one pass rather than by trial and error.
+/// Small close affordance shared by the import banners, so a dismissed banner
+/// looks and behaves the same whether the import succeeded or failed.
+class _DismissButton extends StatelessWidget {
+  const _DismissButton({
+    required this.color,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final Color color;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Icon(Icons.close, size: 16, color: color.withValues(alpha: 0.7)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportProblems extends StatelessWidget {
+  const _ImportProblems({
+    required this.errors,
+    required this.isFormatProblem,
+    required this.onDismiss,
+  });
+
+  final List<String> errors;
+
+  /// False when the file parsed fine and only saving failed, in which case
+  /// restating the column rules would misdirect the reader.
+  final bool isFormatProblem;
+
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: VidColors.dangerTint,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  isFormatProblem
+                      ? 'This CSV could not be imported. Fix the following and try again:'
+                      : 'The file was read correctly, but these logs could not be saved:',
+                  style: TextStyle(
+                      color: VidColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              _DismissButton(
+                color: VidColors.danger,
+                tooltip: 'Dismiss import errors',
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final e in errors)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text('•  $e',
+                  style: TextStyle(color: VidColors.danger, fontSize: 13, height: 1.45)),
+            ),
+          if (isFormatProblem) ...[
+            const SizedBox(height: 8),
+            Text(
+              'The file needs an "action" column and any two of "start_time", "end_time" '
+              'and "duration". Column order and capitalisation do not matter.',
+              style: TextStyle(color: VidColors.danger, fontSize: 12, height: 1.45),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// What an import actually did, including anything that was derived or
+/// defaulted, so the result is never silently different from the file.
+class _ImportSummary extends StatelessWidget {
+  const _ImportSummary({
+    required this.summary,
+    required this.notices,
+    required this.onDismiss,
+  });
+
+  final String summary;
+  final List<String> notices;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: VidColors.successTint,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(summary,
+                    style: TextStyle(
+                        color: VidColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+              _DismissButton(
+                color: VidColors.success,
+                tooltip: 'Dismiss import summary',
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+          for (final n in notices)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text('•  $n',
+                  style: TextStyle(color: VidColors.success, fontSize: 12.5, height: 1.45)),
+            ),
+        ],
       ),
     );
   }

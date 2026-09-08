@@ -81,6 +81,7 @@ const Map<String, String> kButtonTooltips = {
   'downloadPdf': 'Download full report',
   'importCsv': 'Load an existing log',
   'help': 'How this page works',
+  'importLogs': 'Bring in logs to analyse',
 };
 
 /// Explanations for individual form fields, shown on the small info icon

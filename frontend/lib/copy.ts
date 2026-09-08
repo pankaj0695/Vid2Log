@@ -84,6 +84,7 @@ export const BUTTON_TOOLTIPS = {
   downloadPdf: "Download full report",
   importCsv: "Load an existing log",
   help: "How this page works",
+  importLogs: "Bring in logs to analyse",
 } as const;
 
 /**

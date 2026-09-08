@@ -24,6 +24,7 @@ import '../constants/help_content.dart';
 import '../models/analytics.dart';
 import '../models/job.dart';
 import '../services/api_client.dart';
+import '../shell/section.dart';
 import '../utils/csv_export.dart';
 import '../utils/overview_pdf.dart';
 import '../widgets/charts.dart';
@@ -115,9 +116,13 @@ Map<String, Color> _actionColorsFor(Iterable<Job> logs) {
 }
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key, required this.apiClient});
+  const AnalyticsScreen({super.key, required this.apiClient, required this.onNavigate});
 
   final ApiClient apiClient;
+
+  /// Analytics can only work with logs that already exist, so it offers a
+  /// way straight to the screen where logs are imported.
+  final ValueChanged<AppSection> onNavigate;
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -489,6 +494,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             helpSection: kHelpAnchors.analytics,
             subtitle: kPageSubtitles['analytics'],
             title: 'Analytics',
+            action: Tooltip(
+              message: kButtonTooltips['importLogs'] ?? 'Bring in logs to analyse',
+              waitDuration: const Duration(milliseconds: 400),
+              child: OutlinedButton.icon(
+                onPressed: () => widget.onNavigate(AppSection.videoLogs),
+                icon: const Icon(Icons.upload_file_rounded, size: 18),
+                label: const Text('Import Logs'),
+              ),
+            ),
           ),
           // Keeping "SPM"/"DSM" in the tab LABELS (proper analytics terms) —
           // only their tooltips describe what each tab shows in plain

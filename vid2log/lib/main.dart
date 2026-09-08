@@ -153,7 +153,10 @@ class _HomeShellState extends State<HomeShell> {
       case AppSection.videoLogs:
         return VideoLogsScreen(apiClient: widget.apiClient);
       case AppSection.analytics:
-        return AnalyticsScreen(apiClient: widget.apiClient);
+        return AnalyticsScreen(
+          apiClient: widget.apiClient,
+          onNavigate: (s) => setState(() => _section = s),
+        );
       case AppSection.help:
         return HelpScreen(initialSection: _helpSection);
     }

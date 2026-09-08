@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/app-shell/AppShell";
 import { api } from "@/lib/api";
@@ -18,7 +19,7 @@ import type {
 import { Container, PageHeader } from "@/components/ui/Section";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -32,6 +33,7 @@ import {
   HorizontalBarChart,
   GanttTimeline,
 } from "@/components/ui/charts";
+import { actionColor, buildActionStyleMap } from "@/lib/actionColors";
 import { JobSelectList } from "@/components/analytics/JobSelectList";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 
@@ -488,6 +490,19 @@ function AnalyticsContent() {
     });
   }, [timelineLogs, doneJobs]);
 
+  /**
+   * One colour assignment shared by every timeline on screen. Building it from
+   * the union of all labels is what lets the user compare logs: an action gets
+   * the same colour in each, and no two actions anywhere in the view collide.
+   */
+  const timelineStyleMap = useMemo(
+    () =>
+      buildActionStyleMap(
+        (timelineEntries ?? []).flatMap((e) => e.segments.map((s) => s.label)),
+      ),
+    [timelineEntries],
+  );
+
   return (
     <AppShell section="analytics" crumb="Analytics">
       <Container className="py-10">
@@ -496,6 +511,16 @@ function AnalyticsContent() {
           subtitle={PAGE_SUBTITLES.analytics}
           title="Pattern analysis"
           helpAnchor={HELP_ANCHORS.analytics}
+          action={
+            // Analytics can only work with logs that already exist, so the
+            // useful thing to offer someone who has none (or is missing one)
+            // is the page where logs get imported.
+            <Tooltip label={BUTTON_TOOLTIPS.importLogs}>
+              <Link href="/video-logs" className={buttonClasses({ variant: "outline" })}>
+                Import Logs
+              </Link>
+            </Tooltip>
+          }
         />
 
         <Tabs
@@ -667,6 +692,7 @@ function AnalyticsContent() {
                     data={actionRows.map((r) => ({
                       label: r.label,
                       value: r.count,
+                      color: actionColor(r.label),
                     }))}
                   />
                 </Card>
@@ -680,6 +706,7 @@ function AnalyticsContent() {
                     data={actionRows.map((r) => ({
                       label: r.label,
                       value: Math.round((r.totalSec / 60) * 10) / 10,
+                      color: actionColor(r.label),
                     }))}
                   />
                 </Card>
@@ -1253,6 +1280,7 @@ function AnalyticsContent() {
                         1,
                       )}
                       height={80}
+                      styleMap={timelineStyleMap}
                     />
                   )}
                 </Card>

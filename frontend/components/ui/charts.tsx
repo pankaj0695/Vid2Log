@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { actionStyleCss, lookupActionStyle, type ActionStyle } from "@/lib/actionColors";
 
 /**
  * Small, dependency-free SVG chart primitives for the dark "dithered" theme.
@@ -297,18 +298,27 @@ export function GanttTimeline({
   totalSeconds,
   height = 64,
   tickCount = 8,
+  styleMap,
 }: {
-  segments: { label: string; startSec: number; endSec: number; color?: string }[];
+  segments: { label: string; startSec: number; endSec: number }[];
   totalSeconds: number;
   /** Bar height in px — defaults taller than the old 32px timeline so
    * individual scenes (and their hover targets) are easier to make out. */
   height?: number;
   /** How many evenly-spaced time labels to show on the axis below the bar. */
   tickCount?: number;
+  /**
+   * Shared label→style map, built once by the caller across every timeline on
+   * screen. Passing it is what makes an action look identical from one log to
+   * the next; without it each timeline falls back to hashing its own labels,
+   * which is still stable but can collide within a single log.
+   */
+  styleMap?: Map<string, ActionStyle>;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const classNames = Array.from(new Set(segments.map((s) => s.label)));
-  const colorFor = (label: string) => segments.find((s) => s.label === label)?.color ?? paletteColor(classNames.indexOf(label));
+  const styleFor = (label: string) => lookupActionStyle(styleMap, label);
+  const swatchCss = (label: string) => actionStyleCss(styleFor(label));
 
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (totalSeconds * i) / tickCount);
   const active = hovered !== null ? segments[hovered] : null;
@@ -326,7 +336,10 @@ export function GanttTimeline({
             style={{ left: `${tooltipLeftPct}%` }}
           >
             <div className="flex items-center gap-1.5 font-medium text-text">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colorFor(active.label) }} />
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-[3px] border border-black/10"
+                style={swatchCss(active.label)}
+              />
               {active.label}
             </div>
             <div className="mt-0.5 font-mono text-neutral-500">
@@ -347,7 +360,7 @@ export function GanttTimeline({
                 onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
                 style={{
                   width: `${Math.max(0.3, widthPct)}%`,
-                  backgroundColor: colorFor(s.label),
+                  ...swatchCss(s.label),
                   filter: hovered !== null && hovered !== i ? "brightness(0.55)" : "brightness(1)",
                 }}
                 className="h-full cursor-pointer border-r border-bg/40 transition-[filter] last:border-r-0"
@@ -371,7 +384,10 @@ export function GanttTimeline({
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-500">
         {classNames.map((label) => (
           <span key={label} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorFor(label) }} />
+            <span
+              className="h-3 w-3 shrink-0 rounded-[3px] border border-black/10"
+              style={swatchCss(label)}
+            />
             {label}
           </span>
         ))}
