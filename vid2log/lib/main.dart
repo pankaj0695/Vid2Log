@@ -8,7 +8,7 @@ import 'screens/detectors_screen.dart';
 import 'screens/help_screen.dart';
 import 'screens/process_screen.dart';
 import 'screens/train_screen.dart';
-import 'screens/video_logs_screen.dart';
+import 'screens/activity_logs_screen.dart';
 import 'services/api_client.dart';
 import 'services/sidecar_service.dart';
 import 'shell/app_shell.dart';
@@ -150,8 +150,8 @@ class _HomeShellState extends State<HomeShell> {
           onOpenJob: _openJob,
           onNavigate: (s) => setState(() => _section = s),
         );
-      case AppSection.videoLogs:
-        return VideoLogsScreen(apiClient: widget.apiClient);
+      case AppSection.activityLogs:
+        return ActivityLogsScreen(apiClient: widget.apiClient);
       case AppSection.analytics:
         return AnalyticsScreen(
           apiClient: widget.apiClient,

@@ -498,7 +498,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               message: kButtonTooltips['importLogs'] ?? 'Bring in logs to analyse',
               waitDuration: const Duration(milliseconds: 400),
               child: OutlinedButton.icon(
-                onPressed: () => widget.onNavigate(AppSection.videoLogs),
+                onPressed: () => widget.onNavigate(AppSection.activityLogs),
                 icon: const Icon(Icons.upload_file_rounded, size: 18),
                 label: const Text('Import Logs'),
               ),

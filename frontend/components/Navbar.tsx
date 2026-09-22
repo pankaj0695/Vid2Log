@@ -25,7 +25,7 @@ const APP_SHELL_PREFIXES = [
   "/analytics",
   "/admin",
   "/detectors",
-  "/video-logs",
+  "/activity-logs",
   "/create-actions",
   "/help",
 ];

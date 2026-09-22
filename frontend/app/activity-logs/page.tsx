@@ -50,11 +50,11 @@ async function triggerDownload(url: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Every finished video log, moved out of Process's old "Video logs" tab
+/** Every finished activity log, moved out of Process's old "Activity logs" tab
  * into its own page — this is the "get logs into and out of vid2log" hub,
  * whether that log came from actually processing a video or from importing
  * a hand-built/exported CSV directly. */
-function VideoLogsContent() {
+function ActivityLogsContent() {
   const [jobs, setJobs] = useState<JobOut[] | null>(null);
   const [jobsError, setJobsError] = useState<string | null>(null);
 
@@ -288,13 +288,13 @@ function VideoLogsContent() {
   const doneJobs = jobs ?? [];
 
   return (
-    <AppShell section="video-logs" crumb="Video logs">
+    <AppShell section="activity-logs" crumb="Activity logs">
       <Container className="py-10">
         <PageHeader
-          eyebrow="Video logs"
-          subtitle={PAGE_SUBTITLES["video-logs"]}
-          title="Video logs"
-          helpAnchor={HELP_ANCHORS.videoLogs}
+          eyebrow="Activity logs"
+          subtitle={PAGE_SUBTITLES["activity-logs"]}
+          title="Activity logs"
+          helpAnchor={HELP_ANCHORS.activityLogs}
         />
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -514,7 +514,7 @@ function VideoLogsContent() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete this video log?"
+        title="Delete this activity log?"
         description={
           deleteTarget && (
             <>
@@ -532,10 +532,10 @@ function VideoLogsContent() {
   );
 }
 
-export default function VideoLogsPage() {
+export default function ActivityLogsPage() {
   return (
     <ProtectedRoute>
-      <VideoLogsContent />
+      <ActivityLogsContent />
     </ProtectedRoute>
   );
 }

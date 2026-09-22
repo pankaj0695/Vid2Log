@@ -87,7 +87,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Create actions: identify the repeated screens in a sample recording and assign each one a name.",
           "Train: build a detector from those named examples.",
           "Process video: run your recordings through the detector.",
-          "Video logs: review, correct and export the resulting logs.",
+          "Activity logs: review, correct and export the resulting logs.",
           "Analytics: compare patterns across recordings.",
         ],
       },
@@ -254,7 +254,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     terms: [
       { term: "Queued", def: "Waiting for earlier work to complete." },
       { term: "Processing", def: "Currently running." },
-      { term: "Done", def: "Complete. The log is available under Video logs." },
+      { term: "Done", def: "Complete. The log is available under Activity logs." },
       {
         term: "Failed",
         def: "Processing did not complete. The reason is displayed on the recording itself.",
@@ -263,9 +263,9 @@ export const HELP_SECTIONS: HelpSection[] = [
     note: "Longer recordings take proportionally longer to process. You may navigate away and return at any point, as processing continues independently of the page.",
   },
   {
-    id: "video-logs",
-    nav: "Video logs",
-    title: "Video logs",
+    id: "activity-logs",
+    nav: "Activity logs",
+    title: "Activity logs",
     blurb:
       "Every completed log. Expanding a log displays its scene table, listing start time, end time, duration, action and confidence.",
     groups: [
@@ -455,7 +455,7 @@ export const HELP_ANCHORS = {
   train: "train",
   detectors: "detectors",
   process: "process",
-  videoLogs: "video-logs",
+  activityLogs: "activity-logs",
   analytics: "analytics",
   admin: "admin",
 } as const;

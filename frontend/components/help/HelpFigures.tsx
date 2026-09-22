@@ -573,10 +573,10 @@ function LogsFigure() {
     ["00:12", "00:20", "Checkout", "88%"],
   ];
   return (
-    <Figure height={172} title="Video logs: the scene table inside an expanded log">
+    <Figure height={172} title="Activity logs: the scene table inside an expanded log">
       <Frame height={172}>
         <Label x={16} y={26}>
-          Video logs
+          Activity logs
         </Label>
         <Btn x={330} y={14} w={78} h={18} variant="outline">
           CSV template

@@ -24,7 +24,7 @@ const Map<AppSection, String> kNavTooltips = {
   AppSection.train: 'Teach a new detector',
   AppSection.detectors: 'Manage your trained detectors',
   AppSection.process: 'Upload and process recordings',
-  AppSection.videoLogs: 'View generated activity logs',
+  AppSection.activityLogs: 'View generated activity logs',
   AppSection.analytics: 'Explore patterns across recordings',
   AppSection.help: 'Guides for every page',
 };
@@ -33,7 +33,7 @@ const Map<AppSection, String> kNavTooltips = {
 const Map<String, String> kPageSubtitles = {
   'dashboard': 'A quick look at your recordings, detectors, and recent activity.',
   'process': 'Process a screen recording and see what happened, moment by moment.',
-  'video-logs': 'Browse the activity logs generated from your recordings.',
+  'activity-logs': 'Browse the activity logs generated from your recordings.',
   'train': 'Teach a detector to recognize the actions in your recordings.',
   'detectors': 'Manage and compare the detectors you\'ve trained.',
   'create-actions': 'Let Vid2Log find repeated actions automatically, or define them yourself.',

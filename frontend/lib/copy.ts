@@ -23,7 +23,7 @@ export const NAV_TOOLTIPS: Record<string, string> = {
   train: "Teach a new detector",
   detectors: "Manage your trained detectors",
   process: "Upload and process recordings",
-  "video-logs": "View generated activity logs",
+  "activity-logs": "View generated activity logs",
   analytics: "Explore patterns across recordings",
   admin: "Manage users and access",
   help: "Guides for every page",
@@ -32,7 +32,7 @@ export const NAV_TOOLTIPS: Record<string, string> = {
 export const PAGE_SUBTITLES: Record<string, string> = {
   dashboard: "A quick look at your recordings, detectors, and recent activity.",
   process: "Upload a screen recording and see what happened, moment by moment.",
-  "video-logs": "Browse the activity logs generated from your recordings.",
+  "activity-logs": "Browse the activity logs generated from your recordings.",
   train: "Teach a detector to recognize the actions in your recordings.",
   detectors: "Manage and compare the detectors you've trained.",
   "detector-detail": "Details, performance, and options for this detector.",

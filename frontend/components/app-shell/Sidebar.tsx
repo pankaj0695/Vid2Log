@@ -26,7 +26,7 @@ export type SectionId =
   | "train"
   | "process"
   | "detectors"
-  | "video-logs"
+  | "activity-logs"
   | "create-actions"
   | "analytics"
   | "admin"
@@ -43,7 +43,7 @@ const NAV: {
   { id: "train", href: "/train", label: "Train", icon: IconSliders },
   { id: "detectors", href: "/detectors", label: "My detectors", icon: IconBox },
   { id: "process", href: "/process", label: "Process video", icon: IconFilm },
-  { id: "video-logs", href: "/video-logs", label: "Video logs", icon: IconList },
+  { id: "activity-logs", href: "/activity-logs", label: "Activity logs", icon: IconList },
   {
     id: "analytics",
     href: "/analytics",

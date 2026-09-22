@@ -12,7 +12,7 @@ enum AppSection {
   train,
   detectors,
   process,
-  videoLogs,
+  activityLogs,
   analytics,
   help,
 }
@@ -59,8 +59,8 @@ const Map<AppSection, SectionMeta> kSections = {
     icon: Icons.movie_creation_outlined,
     implemented: true,
   ),
-  AppSection.videoLogs: SectionMeta(
-    label: 'Video logs',
+  AppSection.activityLogs: SectionMeta(
+    label: 'Activity logs',
     icon: Icons.list_alt_rounded,
     implemented: true,
   ),

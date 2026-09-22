@@ -48,7 +48,7 @@ function formatDate(iso: string | null): string {
 // Job history lists the underlying processing job itself (queued/processing/
 // done/failed) — it should read as "the video I uploaded", so it keeps
 // whatever extension the source file actually has (.mp4, .mov, etc.),
-// unlike the Video logs tab which shows the resulting CSV log.
+// unlike the Activity logs tab which shows the resulting CSV log.
 function rawJobName(job: JobOut): string {
   return job.display_name || job.original_filename;
 }
@@ -161,8 +161,8 @@ function ProcessContent() {
           title="Process a video"
           helpAnchor={HELP_ANCHORS.process}
           action={
-            <Link href="/video-logs" className={buttonClasses({ variant: "outline" })}>
-              Video logs
+            <Link href="/activity-logs" className={buttonClasses({ variant: "outline" })}>
+              Activity logs
             </Link>
           }
         />

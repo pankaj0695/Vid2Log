@@ -166,8 +166,8 @@ class _ProcessScreenState extends State<ProcessScreen> {
             subtitle: kPageSubtitles['process'],
             title: 'Process a video',
             action: OutlinedButton(
-              onPressed: () => widget.onNavigate(AppSection.videoLogs),
-              child: const Text('Video logs'),
+              onPressed: () => widget.onNavigate(AppSection.activityLogs),
+              child: const Text('Activity logs'),
             ),
           ),
           VidTabs<_ProcessTab>(

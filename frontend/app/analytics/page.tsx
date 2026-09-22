@@ -516,7 +516,7 @@ function AnalyticsContent() {
             // useful thing to offer someone who has none (or is missing one)
             // is the page where logs get imported.
             <Tooltip label={BUTTON_TOOLTIPS.importLogs}>
-              <Link href="/video-logs" className={buttonClasses({ variant: "outline" })}>
+              <Link href="/activity-logs" className={buttonClasses({ variant: "outline" })}>
                 Import Logs
               </Link>
             </Tooltip>

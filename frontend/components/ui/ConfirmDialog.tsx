@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button } from "./Button";
 
 /**
- * Shared confirmation modal for destructive actions (deleting a video log,
+ * Shared confirmation modal for destructive actions (deleting an activity log,
  * deleting a model, ...). Renders nothing when `open` is false so it can sit
  * at the bottom of a page unconditionally rather than every call site having
  * to gate its own mount.

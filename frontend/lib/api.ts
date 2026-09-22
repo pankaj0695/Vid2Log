@@ -121,7 +121,7 @@ export const api = {
     // Same endpoint as cancel() — the backend cancels a still-queued job or
     // actually deletes a finished one depending on its status. Named
     // separately here so call sites read clearly (Job history's "Cancel"
-    // button vs Video logs' "Delete" button).
+    // button vs Activity logs' "Delete" button).
     remove: (jobId: string) => request<{ status: string; note?: string }>(`/jobs/${jobId}`, { method: "DELETE" }),
   },
 

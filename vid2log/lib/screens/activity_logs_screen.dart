@@ -1,4 +1,4 @@
-/// Ported from frontend/app/video-logs/page.tsx, every finished video
+/// Ported from frontend/app/activity-logs/page.tsx, every finished activity
 /// log: view scenes inline, rename, export CSV, delete, plus importing a
 /// log that already exists as a CSV (produced by hand, exported from
 /// elsewhere, or exported from here and edited).
@@ -21,16 +21,16 @@ import '../services/api_client.dart';
 import '../utils/log_csv.dart';
 import '../widgets/ui.dart';
 
-class VideoLogsScreen extends StatefulWidget {
-  const VideoLogsScreen({super.key, required this.apiClient});
+class ActivityLogsScreen extends StatefulWidget {
+  const ActivityLogsScreen({super.key, required this.apiClient});
 
   final ApiClient apiClient;
 
   @override
-  State<VideoLogsScreen> createState() => _VideoLogsScreenState();
+  State<ActivityLogsScreen> createState() => _ActivityLogsScreenState();
 }
 
-class _VideoLogsScreenState extends State<VideoLogsScreen> {
+class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
   List<Job>? _jobs;
   String? _error;
   String? _expandedJobId;
@@ -265,7 +265,7 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this video log?'),
+        title: const Text('Delete this activity log?'),
         content: Text(
             'This permanently deletes the log for "${job.label}". This can\'t be undone.'),
         actions: [
@@ -297,10 +297,10 @@ class _VideoLogsScreenState extends State<VideoLogsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(
-            eyebrow: 'Video logs',
-            helpSection: kHelpAnchors.videoLogs,
-            subtitle: kPageSubtitles['video-logs'],
-            title: 'Video logs',
+            eyebrow: 'Activity logs',
+            helpSection: kHelpAnchors.activityLogs,
+            subtitle: kPageSubtitles['activity-logs'],
+            title: 'Activity logs',
             action: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

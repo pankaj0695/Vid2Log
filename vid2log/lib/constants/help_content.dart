@@ -86,7 +86,7 @@ const List<HelpSection> kHelpSections = [
           'Create actions: identify the repeated screens in a sample recording and assign each one a name.',
           'Train: build a detector from those named examples.',
           'Process video: run your recordings through the detector.',
-          'Video logs: review, correct and export the resulting logs.',
+          'Activity logs: review, correct and export the resulting logs.',
           'Analytics: compare patterns across recordings.',
         ],
       ),
@@ -259,7 +259,7 @@ const List<HelpSection> kHelpSections = [
     terms: [
       HelpTerm('Queued', 'Waiting for earlier work to complete.'),
       HelpTerm('Processing', 'Currently running.'),
-      HelpTerm('Done', 'Complete. The log is available under Video logs.'),
+      HelpTerm('Done', 'Complete. The log is available under Activity logs.'),
       HelpTerm('Failed',
           'Processing did not complete. The reason is displayed on the recording itself.'),
     ],
@@ -268,9 +268,9 @@ const List<HelpSection> kHelpSections = [
         'independently.',
   ),
   HelpSection(
-    id: 'video-logs',
-    nav: 'Video logs',
-    title: 'Video logs',
+    id: 'activity-logs',
+    nav: 'Activity logs',
+    title: 'Activity logs',
     blurb:
         'Every completed log. Expanding a log displays its scene table, listing '
         'start time, end time, duration, action and confidence.',
@@ -440,6 +440,6 @@ abstract final class kHelpAnchors {
   static const train = 'train';
   static const detectors = 'detectors';
   static const process = 'process';
-  static const videoLogs = 'video-logs';
+  static const activityLogs = 'activity-logs';
   static const analytics = 'analytics';
 }
